@@ -2,7 +2,7 @@
 source ./instance.cnf
 SPVERSION=$1
 path=${SPALLINONE}/${SPVERSION}
-filename=/${VERSION}.sql
+filename=/${SPVERSION}.sql
 MYSQLCMD="mysqldump ${MYSQL_CONN} --default-character-set=utf8 "
 DBCONFIGFILE=${path}/db.config
 # SP export
