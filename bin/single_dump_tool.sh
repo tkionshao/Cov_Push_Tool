@@ -11,7 +11,7 @@ SQLSTMT="SELECT COUNT(1) FROM mysql.proc WHERE db='${DBNAME}' AND name='${SPNAME
 PROC_EXISTS=`mysql ${MYSQL_CONN} -ANe"${SQLSTMT}" | awk '{print $1}'`
 if [ ${PROC_EXISTS} -eq 1 ]
 then
-    rm -f ./${TMPFILE}
+    rm -f ${TMPFILE}
     echo "Export ${DBNAME}.${SPNAME}"
     SQLSTMT="SELECT type FROM mysql.proc WHERE db='${DBNAME}' AND name='${SPNAME}'"
     PROC_TYPE=`mysql ${MYSQL_CONN} -ANe"${SQLSTMT}" | awk '{print $1}'`
@@ -44,6 +44,6 @@ then
 else
     echo "Stored Procedure ${DBNAME}.${SPNAME} Does Not Exist"
 fi
-# rm -f ${SPTEMP}
-# rm -f ${TMPFILE}
+rm -f ${SPTEMP}
+rm -f ${TMPFILE}
 # ls -l |wc -l
