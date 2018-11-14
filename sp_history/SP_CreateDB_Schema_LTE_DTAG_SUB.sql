@@ -1,0 +1,58 @@
+DELIMITER $$
+USE `gt_gw_main`$$
+DROP PROCEDURE IF EXISTS `SP_CreateDB_LTE`$$
+CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_CreateDB_Schema_LTE_DTAG_SUB`(IN GT_DB VARCHAR(100))
+BEGIN
+		
+	
+		SET @SqlCmd=CONCAT('DROP  TABLE  IF EXISTS ',GT_DB,'.`table_tile_alarm`;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+		SET @SqlCmd=CONCAT('DROP  TABLE  IF EXISTS ',GT_DB,'.`table_tile_alarm_3days`;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+		SET @SqlCmd=CONCAT('DROP  TABLE  IF EXISTS ',GT_DB,'.`table_tile_alarm_7days`;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+		
+	
+	
+		SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`table_tile_alarm`(
+					`AREA_ID` MEDIUMINT(9) NULL DEFAULT NULL,
+					`ENODEB_ID` MEDIUMINT(9) NULL DEFAULT NULL,
+					`ENODEB_NAME` VARCHAR(64) NULL DEFAULT NULL,
+					`TILE_ID` BIGINT(20) NULL DEFAULT NULL,
+					`RULE_ID` INT(11) NULL DEFAULT NULL,
+					`KPI_ID` int(11) DEFAULT NULL,
+					`KPI_VALUE` DOUBLE NULL DEFAULT NULL,
+					`ALARM_TYPE` SMALLINT(6) NULL DEFAULT NULL,
+					`DATA_DATE` DATE NULL DEFAULT NULL,
+					`OVER_THRESHOLD` TINYINT(1) NULL DEFAULT NULL 
+					) ENGINE=MYISAM DEFAULT CHARSET=utf8
+					;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+	
+		
+		SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`table_tile_alarm_3days` LIKE ',GT_DB,'.`table_tile_alarm`;'); 
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+	
+		SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`table_tile_alarm_7days` LIKE ',GT_DB,'.`table_tile_alarm`;'); 
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+	
+	
+END$$
+DELIMITER ;

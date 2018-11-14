@@ -1,0 +1,334 @@
+DELIMITER $$
+USE `operations_monitor`$$
+DROP PROCEDURE IF EXISTS `SP_CreateDB_LTE`$$
+CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Generate_Data_Monitor_NSN`( IN tbl_name VARCHAR(100),IN GW VARCHAR(100),IN DATA_TIME VARCHAR(100) )
+BEGIN
+		DECLARE SUB_DATE DATETIME;
+		DECLARE WORKER_ID VARCHAR(10) DEFAULT CONNECTION_ID();	
+		SET SUB_DATE = DATE_SUB(DATA_TIME,INTERVAL 1 DAY);
+		SET @DATA_STR = DATE_FORMAT(DATA_TIME, '%Y-%m-%d %H:00:00');
+		SET @DATA_HR = STR_TO_DATE(@DATA_STR,'%Y-%m-%d%T');
+		SET @NT_DATE =  DATE_FORMAT(DATA_TIME, '%Y%m%d');
+		SET @NT_DB =CONCAT('gt_nt_',@NT_DATE);
+		
+		SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS operations_monitor.tmp_last_hour_nsn_trace_',WORKER_ID,' ;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+	
+		SET @SqlCmd=CONCAT('CREATE  TEMPORARY  TABLE operations_monitor.tmp_last_hour_nsn_trace_',WORKER_ID,'  ENGINE=MYISAM AS  
+			   SELECT
+			  `DATA_TIME`,
+			  `ENODEB_ID`,
+			  `CREATE_TIME`,
+			  `ENODEB_NAME`,
+			  `ENODEB_VENDOR`,
+			  `ENODEB_IP`,
+			  `CDGS`,
+			  `CLUSTER_NAME_REGION`,
+			  `CLUSTER_NAME_SUB_REGION`,
+			  `SUB_REGION_ID`,
+			  `REGION_ID`,
+			  `PU_ID`,
+			  `PU_NAME`,
+			  `NSN_HOURLY_BYTE`,
+			  `NSN_HOURLY_MSG_COUNT`,
+			  `NSN_TOTAL_BYTES`,
+			  `NSN_TOTAL_MSG_COUNT`,
+			  `NSN_VERSION`,
+			  `LAST_TRACE_EVENT_TIME`,
+			   FIRST_FLAG,
+			   FIRST_UPDATE_TIME,
+			   STOP,
+			   STOP_TIME,
+			   STOP_TO_ALIVE
+			FROM `operations_monitor`.`enodeb_history_detail`
+			where DATA_TIME =  DATE_SUB(''',@DATA_HR,''',INTERVAL 1 HOUR) AND  ENODEB_VENDOR = ''NSN'' and CDGS = ''',GW,'''
+	
+		;');
+	
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+		
+	
+	
+		SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS operations_monitor.tmp_nsn_trace_',WORKER_ID,' ;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+		
+		SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE operations_monitor.tmp_nsn_trace_',WORKER_ID,'  ENGINE=MYISAM AS  
+				   SELECT
+				  a.`DATA_TIME`,
+				  a.`DATA_TIME` AS CREATE_TIME,
+				  a.`CDGS`,
+				  a.`ENODEB`,
+				  a.`IP`,
+				  a.`PORT`,
+				  a.`VERSION`,
+				  a.`STATUS`,
+				 CASE 
+				 WHEN b.ENODEB_ID is null then null
+				 WHEN IFNULL(a.BYTES,0) > IFNULL(b.NSN_TOTAL_BYTES,0) THEN (IFNULL(a.BYTES,0) - IFNULL(b.NSN_TOTAL_BYTES,0))
+				 WHEN IFNULL(a.BYTES,0) < IFNULL(b.NSN_TOTAL_BYTES,0)  THEN a.BYTES
+				 WHEN IFNULL(a.BYTES,0) = IFNULL(b.NSN_TOTAL_BYTES,0) THEN 0
+				 END NSN_HOURLY_BYTE,
+				 CASE 
+				 WHEN IFNULL(a.RECORDS,0) > IFNULL(b.NSN_TOTAL_MSG_COUNT,0) THEN (IFNULL(a.RECORDS,0) - IFNULL(b.NSN_TOTAL_MSG_COUNT,0))
+				 WHEN IFNULL(a.RECORDS,0) < IFNULL(b.NSN_TOTAL_MSG_COUNT,0)  THEN IFNULL(a.RECORDS,0)
+				 WHEN IFNULL(a.RECORDS,0) = IFNULL(b.NSN_TOTAL_MSG_COUNT,0) THEN  0
+				 END NSN_HOURLY_MSG_COUNT,
+				 a.BYTES AS NSN_TOTAL_BYTES,
+				 a.RECORDS AS NSN_TOTAL_MSG_COUNT,
+				CONCAT(''0x'',RIGHT(CONCAT(''00000000'',HEX(VERSION)),8)) AS NSN_VERSION,
+				''',DATA_TIME,''' as LAST_TRACE_EVENT_TIME,
+				CASE WHEN b.FIRST_FLAG = 0 OR b.FIRST_FLAG IS NULL THEN 1 
+				ELSE b.FIRST_FLAG END AS FIRST_FLAG,
+				CASE WHEN b.FIRST_FLAG = 0 OR b.FIRST_FLAG IS NULL THEN ''',DATA_TIME,'''
+				ELSE b.FIRST_UPDATE_TIME END AS FIRST_UPDATE_TIME,
+				CASE WHEN IFNULL(a.BYTES,0) = IFNULL(b.NSN_TOTAL_BYTES,0)  THEN 1 
+				WHEN a.STATUS =''offline''  THEN 1 
+				ELSE 0 END AS STOP,
+				CASE WHEN IFNULL(a.BYTES,0) = IFNULL(b.NSN_TOTAL_BYTES,0)  AND FIRST_FLAG = 1  AND b.STOP_TIME IS NULL THEN ''',DATA_TIME,'''  
+				ELSE b.STOP_TIME
+				END AS STOP_TIME,
+				CASE WHEN b.STOP = 1 AND IFNULL(a.BYTES,0) > IFNULL(b.NSN_TOTAL_BYTES,0) THEN 1 ELSE 0 END AS STOP_TO_ALIVE
+				FROM   operations_monitor.',tbl_name,' a 
+				left join operations_monitor.tmp_last_hour_nsn_trace_',WORKER_ID,'  b
+				ON a.ENODEB = b.ENODEB_ID 
+	
+		;');
+		
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+		
+		
+				
+		SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS operations_monitor.enodeb_history_detail_tmp_',WORKER_ID,' ;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+		
+		
+		SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE operations_monitor.enodeb_history_detail_tmp_',WORKER_ID,'  (
+				  `DATA_TIME` DATETIME NOT NULL ,
+				  `ENODEB_ID` INT(9) NOT NULL ,
+				  `CREATE_TIME` DATETIME DEFAULT NULL,
+				  `ENODEB_NAME` VARCHAR(50) DEFAULT NULL,
+				  `ENODEB_VENDOR` VARCHAR(50) DEFAULT NULL ,
+				  `ENODEB_IP` VARCHAR(50) DEFAULT NULL ,
+				  `CDGS` VARCHAR(50) DEFAULT NULL ,
+				  `CLUSTER_NAME_REGION` VARCHAR(100) DEFAULT NULL,
+				  `CLUSTER_NAME_SUB_REGION` VARCHAR(100) DEFAULT NULL ,
+				  `SUB_REGION_ID` INT(9) DEFAULT NULL,
+				  `REGION_ID` INT(9) DEFAULT NULL ,
+				  `PU_ID` INT(9) DEFAULT NULL ,
+				  `PU_NAME` VARCHAR(50) DEFAULT NULL,
+				  `HUA_FILESIZE` BIGINT(9) DEFAULT NULL ,
+				  `HUA_FILECOUNT` INT(9) DEFAULT NULL ,
+				  `HUA_LAST_UPDATETIME` DATETIME DEFAULT NULL ,
+				  `NSN_HOURLY_BYTE` INT(15) DEFAULT NULL,
+				  `NSN_HOURLY_MSG_COUNT` INT(15) DEFAULT NULL ,
+				  `NSN_TOTAL_BYTES` BIGINT(15) DEFAULT NULL ,
+				  `NSN_TOTAL_MSG_COUNT` BIGINT(15) DEFAULT NULL ,
+				  `NSN_VERSION` VARCHAR(50) DEFAULT NULL ,
+				  `LAST_TRACE_EVENT_TIME` DATETIME DEFAULT NULL ,
+			          `ACT_STATE` VARCHAR(50) DEFAULT NULL,
+				  `FIRST_FLAG` TINYINT(4) DEFAULT ''0'',
+				  `FIRST_UPDATE_TIME` DATETIME DEFAULT NULL,
+				  `STOP` TINYINT(4) DEFAULT ''0'',
+				  `STOP_TIME` DATETIME DEFAULT NULL,
+				  `STOP_TO_ALIVE` TINYINT(4) DEFAULT ''0'',
+				  KEY `IDX_ENODEB_ID` (`ENODEB_ID`)
+				) ENGINE=MYISAM DEFAULT CHARSET=latin1;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+		SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS operations_monitor.nt_cell_lte_tmp_',WORKER_ID,' ;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+		SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE operations_monitor.nt_cell_lte_tmp_',WORKER_ID,'  (
+				  `ENODEB_ID` MEDIUMINT(9) DEFAULT NULL,
+				  `ENODEB_NAME` VARCHAR(50) DEFAULT NULL,
+				  `ENODEB_LOC_ID` VARCHAR(20) DEFAULT NULL,
+				  `ENODEB_NE_ID` VARCHAR(20) DEFAULT NULL,
+				  `ENODEB_OSS_NODE_ID` VARCHAR(20) DEFAULT NULL,
+				  `CELL_ID` MEDIUMINT(9) DEFAULT NULL,
+				  `CELL_NAME` VARCHAR(50) DEFAULT NULL,
+				  `CELL_LOC_ID` VARCHAR(20) DEFAULT NULL,
+				  `CELL_NE_ID` VARCHAR(20) DEFAULT NULL,
+				  `CELL_OSS_NODE_ID` VARCHAR(20) DEFAULT NULL,
+				  `EUTRABAND` MEDIUMINT(9) DEFAULT NULL,
+				  `PCI` SMALLINT(6) DEFAULT NULL,
+				  `BWCHANNEL` FLOAT DEFAULT NULL,
+				  `DL_EARFCN` MEDIUMINT(9) DEFAULT NULL,
+				  `UL_EARFCN` MEDIUMINT(9) DEFAULT NULL,
+				  `ENODEB_TYPE` VARCHAR(50) DEFAULT NULL,
+				  `ENODEB_VENDOR` VARCHAR(50) DEFAULT NULL,
+				  `INDOOR` TINYINT(4) DEFAULT NULL,
+				  `IP` VARCHAR(100) DEFAULT NULL,
+				  `CLUSTER_NAME_REGION` VARCHAR(100) DEFAULT NULL,
+				  `CLUSTER_NAME_SUB_REGION` VARCHAR(100) DEFAULT NULL,
+				  `CLUSTER_NAME_STRUCTURE_TYPE` VARCHAR(100) DEFAULT NULL,
+				  `ACT_START` DATE DEFAULT NULL,
+				  `ACT_END` DATE DEFAULT NULL,
+				  `PLAN_START` DATE DEFAULT NULL,
+				  `PLAN_END` DATE DEFAULT NULL,
+				  `ACT_STATE` VARCHAR(50) DEFAULT NULL,
+				  `ENODEB_MODEL` VARCHAR(100) DEFAULT NULL,
+				  `CLUSTER_NAME_ZONE` VARCHAR(100) DEFAULT NULL,
+				  `CELL_RADIUS` MEDIUMINT(9) DEFAULT NULL,
+				  `AMDINSTATE_LOCKED` TINYINT(4) DEFAULT NULL,
+				  `OPERSTATE_ENABLE` TINYINT(4) DEFAULT NULL,
+				  `REGION_ID` MEDIUMINT(9) DEFAULT NULL,
+				  `SUB_REGION_ID` MEDIUMINT(9) DEFAULT NULL,
+				  `NBR_DISTANCE_4G_CM` DOUBLE DEFAULT NULL,
+				  `NBR_DISTANCE_4G_VORONOI` DOUBLE DEFAULT NULL,
+				  `PU_ID` MEDIUMINT(9) DEFAULT NULL,
+				  `SITE_DENSITY_TYPE` TINYINT(4) DEFAULT NULL,
+				  `FLAG` SMALLINT(6) DEFAULT ''0'',
+				  PRIMARY KEY (`ENODEB_ID`),
+				  KEY `NT_CELL_CURRENT_LTE_IDX1` (`ENODEB_ID`,`CELL_ID`)
+				) ENGINE=MYISAM DEFAULT CHARSET=utf8 DELAY_KEY_WRITE=1');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+		
+		
+		
+	
+	
+		SET @SqlCmd=CONCAT('INSERT INTO operations_monitor.enodeb_history_detail_tmp_',WORKER_ID,' (
+					      DATA_TIME,
+					     `ENODEB_ID`,
+					     `CREATE_TIME`,
+					     `ENODEB_NAME`,
+					     `ENODEB_VENDOR`,
+					     `ENODEB_IP`,
+					     `CDGS`,
+					     `CLUSTER_NAME_REGION`,
+					     `CLUSTER_NAME_SUB_REGION`,
+					     `SUB_REGION_ID`,
+					     `REGION_ID`,
+					     `PU_ID`,
+					     `NSN_HOURLY_BYTE`,
+					     `NSN_HOURLY_MSG_COUNT`,
+					     `NSN_TOTAL_BYTES`,
+					     `NSN_TOTAL_MSG_COUNT`,
+					     `NSN_VERSION`,
+					     `LAST_TRACE_EVENT_TIME`,
+					     `ACT_STATE`,
+					     `FIRST_FLAG`,
+					     `FIRST_UPDATE_TIME`,
+					     `STOP`,
+					     `STOP_TIME`,
+					     `STOP_TO_ALIVE`) 
+				SELECT 
+					''',@DATA_HR,''',
+					a.ENODEB,
+					''',DATA_TIME,''',
+					`ENODEB_NAME`,
+					''NSN'',
+					a.IP,
+					`CDGS`,
+					`CLUSTER_NAME_REGION`,
+					`CLUSTER_NAME_SUB_REGION`,
+				        `SUB_REGION_ID`,
+					`REGION_ID`,
+					 b.PU_ID,
+					`NSN_HOURLY_BYTE`,
+					`NSN_HOURLY_MSG_COUNT`,
+					`NSN_TOTAL_BYTES` ,
+					`NSN_TOTAL_MSG_COUNT`,
+					`NSN_VERSION`,
+					''',DATA_TIME,''' AS LAST_TRACE_EVENT_TIME,
+					`ACT_STATE`,
+					`FIRST_FLAG`,
+					`FIRST_UPDATE_TIME`,
+					`STOP`,
+					`STOP_TIME`,
+					`STOP_TO_ALIVE`
+						
+					FROM operations_monitor.tmp_nsn_trace_',WORKER_ID,'  a
+					LEFT JOIN
+					',@NT_DB,'.nt_cell_current_lte b
+					ON  a.ENODEB = b.ENODEB_ID 
+					
+					
+		;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+		
+	
+			
+	
+	
+	
+		
+		SET @SqlCmd=CONCAT('ALTER IGNORE TABLE 
+		operations_monitor.enodeb_history_detail_tmp_',WORKER_ID,' ADD UNIQUE(ENODEB_ID,DATA_TIME);');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+	
+	
+		SET @SqlCmd=CONCAT('update  operations_monitor.enodeb_history_detail_tmp_',WORKER_ID,'  a,
+		gt_gw_main.rnc_information b 
+		set a.pu_name = b.rnc_name
+		where a.pu_id = b.RNC
+		;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+	
+		SET @SqlCmd=CONCAT('INSERT ignore INTO `operations_monitor`.`enodeb_history_detail` 
+		SELECT * FROM enodeb_history_detail_tmp_',WORKER_ID,';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+		SET @SqlCmd=CONCAT('INSERT INTO `operations_monitor`.`nsn_raw_summary`
+				    SELECT * FROM operations_monitor.',tbl_name,';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+		
+	
+		SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS `operations_monitor`.`enodeb_history_detail_tmp_',WORKER_ID,'` ;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+		SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS operations_monitor.tmp_last_hour_nsn_trace_',WORKER_ID,';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+		SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS operations_monitor.nt_cell_lte_tmp_',WORKER_ID,';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+		
+	
+	
+		SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS operations_monitor.tmp_nsn_trace_',WORKER_ID,';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+	
+	
+END$$
+DELIMITER ;

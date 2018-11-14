@@ -1,0 +1,4 @@
+MYSQL_CONN="-u covmo -pcovmo123 -h 192.168.1.221 -P 3310"
+SPALLINONE="./sp_release"
+SPSINGLES="./sp_history"
+DUMPTARGETDB="'gt_gw_main','gt_global_statistic','operations_monitor'"

@@ -1,0 +1,44 @@
+CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Auto_Generate_View`(IN GT_DB VARCHAR(100),IN GT_COVMO VARCHAR(100),IN DP_GW_URI VARCHAR(100))
+BEGIN
+	DECLARE S_IP VARCHAR(20);
+	DECLARE S_PORT VARCHAR(10);
+	DECLARE S_TBL_NAME VARCHAR(100);
+	DECLARE START_TIME DATETIME DEFAULT SYSDATE();
+	DECLARE DB VARCHAR(50) DEFAULT 'gt_gw_main';
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Auto_Generate_View','Start', NOW());
+	
+	SET S_IP = REPLACE(gt_strtok(DP_GW_URI,3,':'),'/','');
+	SET S_PORT = gt_strtok(gt_strtok(DP_GW_URI,4,':'),1,'/');
+	SET S_TBL_NAME = CONCAT('session_information_',S_IP,'_',S_PORT);
+	
+	SET @SqlCmd=CONCAT(' SELECT 1 INTO @ALIVE FROM ',DB,'.`',S_TBL_NAME,'` LIMIT 1;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	IF @ALIVE=1 THEN
+		INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Auto_Generate_View','Update gt_covmo session_information data', NOW());
+		SET @SqlCmd=CONCAT('REPLACE INTO ',GT_COVMO,'.session_information
+								(SESSION_ID,SESSION_DB,RNC,FILE_STARTTIME,FILE_ENDTIME,STATUS,IMPORT_TIME,SESSION_START,SESSION_END,POSITION_VERSION,POSITION_START,POSITION_END,
+								SP_VERSION,SP_STARTTIME,SP_ENDTIME,ORG_DB,ORG_SESSION_NAME,ORG_SESSION_IP,ORG_SESSION_PORT,REAL_SESSION_NAME,DATA_VENDOR,DELETABLE,GW_IP,RNC_VERSION,
+								SESSION_TYPE,TECHNOLOGY,GW_URI,AP_URI,DS_AP_URI)
+							SELECT B.*
+							FROM gt_gw_main.`',S_TBL_NAME,'` B 
+							WHERE B.RNC=',gt_strtok(GT_DB,2,'_'),';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+		
+		INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Auto_Generate_View','Update gt_covmo table_call_cnt data', NOW());
+		SET @SqlCmd=CONCAT('REPLACE INTO ',GT_COVMO,'.table_call_cnt
+								(DATA_DATE,DATA_HOUR,PU_ID,SERVICETYPE,TOT_CALL_CNT,TECH_MASK,NOTE)
+							SELECT B.*
+							FROM gt_gw_main.',CONCAT('`table_call_cnt_',S_IP,'_',S_PORT),'` B 
+							WHERE B.PU_ID=',gt_strtok(GT_DB,2,'_'),';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt; 
+	END IF;
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Auto_Generate_View',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
+	

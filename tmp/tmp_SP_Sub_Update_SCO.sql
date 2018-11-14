@@ -1,0 +1,100 @@
+CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Sub_Update_SCO`(IN GT_DB VARCHAR(100))
+BEGIN
+	DECLARE SH_EH VARCHAR(9) DEFAULT RIGHT(GT_DB,9);
+	DECLARE START_TIME DATETIME DEFAULT SYSDATE();
+	DECLARE CURRENT_NT_DB VARCHAR(50) DEFAULT CONCAT('gt_nt_',gt_strtok(GT_DB,3,'_'));
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_SCO','Start ', NOW());
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_SCO','DROP TABLE tmp_table_tile_fp', NOW());	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.`tmp_table_tile_fp`;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_SCO','CREATE TABLE tmp_table_tile_fp', NOW());	
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.tmp_table_tile_fp
+				SELECT `RNC_ID`, `CELL_ID`, TILE_ID
+				FROM `',GT_DB,'`.`table_tile_fp`
+				GROUP BY `RNC_ID`, `CELL_ID`,TILE_ID;
+			;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('CREATE INDEX ix_rnc_cell ON ',GT_DB,'.tmp_table_tile_fp (`RNC_ID`, `CELL_ID`);');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_opt_sco_result;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+			
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.tmp_opt_sco_result ENGINE=MYISAM
+				SELECT A.`RNC_ID`,A.`CELL_ID`,A.`NBR_RNC_ID`,A.`NBR_CELL_ID`,
+					B.`TILE_ID` TILE_ID_B,C.`TILE_ID` TILE_ID_C,
+					IF((B.`TILE_ID`=C.`TILE_ID`),1,2) AS SAME_CNT
+				FROM ',CURRENT_NT_DB,'.`opt_sco_result` A
+				LEFT JOIN ',GT_DB,'.`tmp_table_tile_fp` B
+				ON A.RNC_ID=B.RNC_ID AND A.CELL_ID=B.CELL_ID
+				LEFT JOIN ',GT_DB,'.`tmp_table_tile_fp` C
+				ON A.NBR_RNC_ID=C.RNC_ID AND A.NBR_CELL_ID=C.CELL_ID
+			;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	
+	SET @SqlCmd=CONCAT('UPDATE ',CURRENT_NT_DB,'.opt_sco_result A,
+				(
+					SELECT `RNC_ID`,`CELL_ID`,`NBR_RNC_ID`,`NBR_CELL_ID`,COUNT(*) AS CNT
+					FROM 
+					(
+						SELECT `RNC_ID`,`CELL_ID`,`NBR_RNC_ID`,`NBR_CELL_ID`,TILE_ID_B AS TILE_ID FROM ',GT_DB,'.tmp_opt_sco_result
+						WHERE TILE_ID_B IS NOT NULL
+						UNION  
+						SELECT `RNC_ID`,`CELL_ID`,`NBR_RNC_ID`,`NBR_CELL_ID`,TILE_ID_C AS TILE_ID FROM ',GT_DB,'.tmp_opt_sco_result
+						WHERE TILE_ID_C IS NOT NULL
+					) A
+					GROUP BY `RNC_ID`,`CELL_ID`,`NBR_RNC_ID`,`NBR_CELL_ID`
+				) B
+				SET UNI_TILE_CNT=B.CNT
+				WHERE A.RNC_ID=B.RNC_ID AND A.CELL_ID=B.CELL_ID AND A.NBR_RNC_ID=B.NBR_RNC_ID AND A.NBR_CELL_ID=B.NBR_CELL_ID 
+				;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('UPDATE ',CURRENT_NT_DB,'.opt_sco_result A,
+				(
+					SELECT `RNC_ID`,`CELL_ID`,`NBR_RNC_ID`,`NBR_CELL_ID`,COUNT(*) AS CNT
+					FROM 
+					(
+						SELECT `RNC_ID`,`CELL_ID`,`NBR_RNC_ID`,`NBR_CELL_ID`,TILE_ID_B
+						FROM ',GT_DB,'.tmp_opt_sco_result
+						WHERE SAME_CNT=1 AND TILE_ID_B IS NOT NULL
+						GROUP BY `RNC_ID`,`CELL_ID`,`NBR_RNC_ID`,`NBR_CELL_ID`,TILE_ID_B
+					) A
+					GROUP BY `RNC_ID`,`CELL_ID`,`NBR_RNC_ID`,`NBR_CELL_ID`
+				) B
+				SET DIS_TILE_CNT=B.CNT
+				WHERE A.RNC_ID=B.RNC_ID AND A.CELL_ID=B.CELL_ID AND A.NBR_RNC_ID=B.NBR_RNC_ID AND A.NBR_CELL_ID=B.NBR_CELL_ID
+				;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('DROP TABLE ',GT_DB,'.tmp_opt_sco_result;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('DROP TABLE ',GT_DB,'.tmp_table_tile_fp;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_SCO',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
+	
+	

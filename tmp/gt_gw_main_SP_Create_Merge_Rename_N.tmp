@@ -1,0 +1,46 @@
+CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Create_Merge_Rename_N`(IN GT_DB VARCHAR(100),IN TABLE_NAME VARCHAR(100),IN TABLE_NUM TINYINT(2))
+BEGIN
+	DECLARE UNION_STR TEXT ;
+	DECLARE MAX_QUARTER SMALLINT(6) DEFAULT 2400;
+	DECLARE tbl_num SMALLINT(6) DEFAULT 0;
+	
+	DECLARE qry_tbl_name VARCHAR(50);
+	DECLARE v_j SMALLINT(6);
+	DECLARE v_k SMALLINT(6);
+	DECLARE v_k_Diff SMALLINT(6);
+	SET tbl_num=TABLE_NUM;
+	SET qry_tbl_name='';
+	SET v_j=1;
+	
+	WHILE v_j <= tbl_num DO
+	BEGIN	
+		SET qry_tbl_name=CONCAT(TABLE_NAME,'_',v_j);
+		
+		SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.',qry_tbl_name,';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+		SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.',qry_tbl_name,' LIKE ',GT_DB,'.',TABLE_NAME,';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+					
+		IF UNION_STR IS NULL THEN
+			SET UNION_STR = CONCAT(GT_DB,'.',qry_tbl_name,'');
+		ELSE
+			SET UNION_STR = CONCAT(UNION_STR,',',GT_DB,'.',qry_tbl_name,'');
+		END IF;	
+		
+		SET v_k=v_k+v_k_Diff;
+		SET v_j=v_j+1;
+	END;
+	END WHILE;
+	
+	SET @SqlCmd=CONCAT('ALTER TABLE ',GT_DB,'.',TABLE_NAME,' ENGINE = MRG_MYISAM UNION=(',UNION_STR,');');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+END
+utf8
+utf8_general_ci
+latin1_swedish_ci

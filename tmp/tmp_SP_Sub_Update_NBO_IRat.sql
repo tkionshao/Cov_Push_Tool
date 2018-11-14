@@ -1,0 +1,625 @@
+CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Sub_Update_NBO_IRat`(IN GT_DB VARCHAR(100),IN GT_COVMO VARCHAR(100))
+BEGIN
+	DECLARE START_TIME DATETIME DEFAULT SYSDATE();
+	DECLARE RNC_ID INT;
+	DECLARE CURRENT_NT_DB VARCHAR(50) DEFAULT CONCAT('gt_nt_',gt_strtok(GT_DB,3,'_'));
+	
+	SELECT gt_strtok(GT_DB,2,'_') INTO RNC_ID;
+	
+	SET @SqlCmd=CONCAT('SELECT `att_value` INTO @STANDARD_RSSI FROM ',GT_DB,'.`sys_config` WHERE `group_name`=''NBO'' AND att_name = ''STANDARD_RSSI'';');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;	
+	SET @SqlCmd=CONCAT('SELECT `att_value` INTO @MAX_IRAT_NBR FROM ',GT_DB,'.`sys_config` WHERE `group_name`=''NBO'' AND att_name=''MAX_IRAT_NBR'';');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','START ', NOW());
+	CALL SP_Sub_Set_Session_Param(GT_DB);
+	
+	SET @SqlCmd=CONCAT('TRUNCATE TABLE ',GT_DB,'.opt_nbr_result_irat;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS `',GT_DB,'`.`tmp_opt_inter_irat_pri`;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS `',GT_DB,'`.`tmp_pri_sum`;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS `',GT_DB,'`.`opt_inter_irat_pri`;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 		
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','S1 ', NOW());
+	
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`opt_inter_irat_pri` (
+				  `RNC_ID` MEDIUMINT(9) DEFAULT NULL,
+				  `CELL_ID` MEDIUMINT(9) DEFAULT NULL,
+				  `NBR_BSC_ID` INT(11) DEFAULT NULL,
+				  `NBR_CELL_ID` MEDIUMINT(9) DEFAULT NULL,
+				  `NBR_TYPE` SMALLINT(6) DEFAULT ''0'',
+				  `PRIORITY` TINYINT(4) DEFAULT NULL,
+				  `IRAT_EVT_CNT` DECIMAL(14,4) DEFAULT ''0'',
+				  `AVG_RSSI` DECIMAL(14,4) DEFAULT NULL,
+				  `IRAT_CALL_SUCCESS` DECIMAL(14,4) DEFAULT ''0'',
+				  `DISTANCE_METER` MEDIUMINT(9) DEFAULT NULL,
+				  `NBR_AZIMUTH_ANGLE` INT(11) DEFAULT NULL,
+				  `PRI_IRAT_HO` MEDIUMINT(9) DEFAULT NULL,
+				  `PRI_IRAT_EVENT` MEDIUMINT(9) DEFAULT NULL,
+				  `PRI_PRIORITY` MEDIUMINT(9) DEFAULT NULL,
+				  `PRI_DISTANCE` MEDIUMINT(9) DEFAULT NULL,
+				  `PRI_RSSI` MEDIUMINT(9) DEFAULT NULL,
+				  `PRI_ANG` MEDIUMINT(9) UNSIGNED DEFAULT NULL,
+				  `PRI_WEIGHTED` MEDIUMINT(9) UNSIGNED DEFAULT NULL,
+				   KEY `IX_RNC_CELL` (`CELL_ID`,`RNC_ID`, `NBR_CELL_ID`, `NBR_BSC_ID`)
+				) ENGINE=MYISAM DEFAULT CHARSET=latin1;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','S2 ', NOW());
+	
+	
+	
+	SET @SqlCmd=CONCAT('INSERT INTO `',GT_DB,'`.`opt_inter_irat_pri`
+			    (`CELL_ID`,`RNC_ID`,`NBR_CELL_ID`,`NBR_BSC_ID`,
+			     `NBR_TYPE`,`PRIORITY`,
+			     `IRAT_EVT_CNT`,
+			     `AVG_RSSI`,
+			     `IRAT_CALL_SUCCESS`,
+			     `DISTANCE_METER`,
+			     `NBR_AZIMUTH_ANGLE`)
+			SELECT `CELL_ID`,`RNC_ID`,`NBR_CELL_ID`,`NBR_BSC_ID`,
+				MAX(NBR_TYPE) NBR_TYPE,NULL PRIORITY,
+				SUM(IRAT_EVT_CNT) AS `IRAT_EVT_CNT`, 
+				SUM(AVG_RSSI*IRAT_EVT_CNT)/SUM(IRAT_EVT_CNT) AS `AVG_RSSI`, 
+				SUM(IRAT_CALL_SUCCESS) AS `IRAT_CALL_SUCCESS`,
+				AVG(DISTANCE_METER) AS `DISTANCE_METER`,
+				120 AS NBR_AZIMUTH_ANGLE
+			FROM ',GT_DB,'.`opt_inter_irat` 
+			WHERE RNC_ID=',RNC_ID,'
+			GROUP BY `CELL_ID`,`RNC_ID`,`NBR_CELL_ID`,`NBR_BSC_ID`;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;		
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS `',GT_DB,'`.tmp_opt_inter_irat_noncm;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','S4 ', NOW());
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.tmp_opt_inter_irat_noncm ENGINE=MYISAM
+-- 				(`RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`NBR_TYPE`,PRIORITY,`IRAT_EVT_CNT`,`AVG_RSSI`,`IRAT_CALL_SUCCESS`,`DISTANCE_METER`,`NBR_AZIMUTH_ANGLE`)
+				SELECT B.`RNC_ID`,B.`CELL_ID`,B.`NBR_RNC_ID`,B.`NBR_CELL_ID`,3 NBR_TYPE,B.PRIORITY,
+					0 AS IRAT_EVT_CNT,
+					NULL AS AVG_RSSI,
+					0 AS IRAT_CALL_SUCCESS,
+					B.NBR_DISTANCE AS DISTANCE_METER,
+					120 AS `NBR_AZIMUTH_ANGLE`
+				FROM ',CURRENT_NT_DB,'.nt_neighbor_current B FORCE INDEX (IX_NBR_TYPE)
+				WHERE NOT EXISTS
+				(
+					SELECT NULL
+					FROM ',GT_DB,'.opt_inter_irat_pri A 
+					WHERE A.CELL_ID=B.CELL_ID
+						AND A.RNC_ID=B.RNC_ID
+						AND A.NBR_CELL_ID=B.NBR_CELL_ID
+						AND A.NBR_BSC_ID=B.NBR_RNC_ID
+				)
+				AND RNC_ID=',RNC_ID,' AND NBR_TYPE=3;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.opt_inter_irat_pri
+				(`RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`NBR_TYPE`,PRIORITY,`IRAT_EVT_CNT`,`AVG_RSSI`,`IRAT_CALL_SUCCESS`,`DISTANCE_METER`,`NBR_AZIMUTH_ANGLE`)
+				SELECT * FROM  ',GT_DB,'.tmp_opt_inter_irat_noncm;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+		
+	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.opt_inter_irat_pri A
+				JOIN ',CURRENT_NT_DB,'.nt_neighbor_current B
+				ON A.CELL_ID=B.CELL_ID
+				AND A.RNC_ID=B.RNC_ID
+				AND A.NBR_CELL_ID=B.NBR_CELL_ID
+				AND A.NBR_BSC_ID=B.NBR_RNC_ID
+				SET A.PRIORITY=B.PRIORITY
+				WHERE A.PRIORITY IS NULL;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	 
+	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.`opt_inter_irat_pri` A
+				LEFT JOIN  ',CURRENT_NT_DB,'.nt_current B
+				ON A.`RNC_ID`=B.RNC_ID AND A.`CELL_ID`=B.CELL_ID
+				SET A.DISTANCE_METER=B.NB_AVG_DISTANCE_GSM
+				WHERE A.DISTANCE_METER IS NULL;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;	
+	
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`tmp_opt_inter_irat_pri` (
+				  `RNC_ID` VARCHAR(10) DEFAULT NULL,
+				  `CELL_ID` MEDIUMINT(9) DEFAULT NULL,
+				  `NBR_BSC_ID` INT(11) DEFAULT NULL,
+				  `NBR_CELL_ID` MEDIUMINT(9) DEFAULT NULL,
+				  `RANK` INT(11) DEFAULT NULL,
+				  `PRI_KIND` VARCHAR(20) NOT NULL DEFAULT '''',
+				   KEY `IX_RNC_CELL` (`CELL_ID`,`RNC_ID`, `NBR_CELL_ID`, `NBR_BSC_ID`)
+				) ENGINE=MYISAM;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS `',GT_DB,'`.tmp_nbr_priority;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('CREATE TABLE `',GT_DB,'`.tmp_nbr_priority ENGINE=MYISAM
+				SELECT A.`CELL_ID`, A.`RNC_ID`, A.NBR_TYPE
+					, MAX(IFNULL(A.PRIORITY,0)) AS MAX_PRI,MIN(IFNULL(A.PRIORITY,0)) AS MIN_PRI
+				FROM `',CURRENT_NT_DB,'`.`nt_neighbor_current` A
+				WHERE A.NBR_TYPE=3
+				GROUP BY A.`CELL_ID`, A.`RNC_ID`, A.NBR_TYPE;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('CREATE INDEX IX_RNC_CELL_1 ON ',GT_DB,'.tmp_nbr_priority(`CELL_ID`,`RNC_ID`);');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','Step1', NOW());
+	
+	SET @SqlCmd=CONCAT('INSERT INTO `',GT_DB,'`.`tmp_opt_inter_irat_pri`
+				(`RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`)
+				SELECT A.`RNC_ID`,A.`CELL_ID`,A.`NBR_BSC_ID`,A.`NBR_CELL_ID`,A.`PRIORITY`,
+				''PRI_PRIORITY'' AS `PRI_KIND`
+				FROM `',GT_DB,'`.opt_inter_irat_pri A
+				JOIN `',GT_DB,'`.tmp_nbr_priority B
+				ON A.`CELL_ID` = B.CELL_ID AND A.`RNC_ID` = B.RNC_ID
+				WHERE (B.MAX_PRI <>0 AND B.MIN_PRI <>0) AND A.NBR_TYPE=3;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;	
+	
+	SET @SqlCmd=CONCAT('INSERT INTO `',GT_DB,'`.`tmp_opt_inter_irat_pri`
+				(`RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`)
+				SELECT A.`RNC_ID`,A.`CELL_ID`,A.`NBR_BSC_ID`,A.`NBR_CELL_ID`,(B.MAX_PRI+1) AS `RANK`,
+				''PRI_PRIORITY'' AS `PRI_KIND`
+				FROM `',GT_DB,'`.opt_inter_irat_pri A
+				JOIN `',GT_DB,'`.tmp_nbr_priority B
+				ON A.`CELL_ID` = B.CELL_ID AND A.`RNC_ID` = B.RNC_ID
+				WHERE (B.MAX_PRI <>0 AND B.MIN_PRI <>0) AND A.NBR_TYPE=0;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','Step2', NOW());
+	
+	SET @SqlCmd=CONCAT('INSERT INTO `',GT_DB,'`.`tmp_opt_inter_irat_pri`
+				(`RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`)
+				SELECT A.`RNC_ID`,A.`CELL_ID`,A.`NBR_BSC_ID`,A.`NBR_CELL_ID`,A.`PRIORITY`,
+				''PRI_PRIORITY'' AS `PRI_KIND`
+				FROM `',GT_DB,'`.opt_inter_irat_pri A
+				JOIN `',GT_DB,'`.tmp_nbr_priority B
+				ON A.`CELL_ID` = B.CELL_ID AND A.`RNC_ID` = B.RNC_ID
+				WHERE (B.MAX_PRI <>0 AND B.MIN_PRI =0) AND A.NBR_TYPE=3 AND A.`PRIORITY` IS NOT NULL;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','Step3', NOW());
+	
+	SET @SqlCmd=CONCAT('INSERT INTO `',GT_DB,'`.`tmp_opt_inter_irat_pri`
+				(`RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`)
+				SELECT DISTINCT A.`RNC_ID`,A.`CELL_ID`,A.`NBR_BSC_ID`,A.`NBR_CELL_ID`
+					,(B.MAX_PRI+1) AS `RANK`,''PRI_PRIORITY'' AS `PRI_KIND`
+				FROM `',GT_DB,'`.opt_inter_irat_pri a
+				JOIN `',GT_DB,'`.tmp_nbr_priority B
+				ON A.`RNC_ID`=B.`RNC_ID` AND A.`CELL_ID`=B.`CELL_ID` 
+				WHERE  (B.MAX_PRI <>0 AND B.MIN_PRI =0) AND A.NBR_TYPE=3 AND A.`PRIORITY` IS NULL;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('INSERT INTO `',GT_DB,'`.`tmp_opt_inter_irat_pri`
+				(`RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`)
+				SELECT DISTINCT A.`RNC_ID`,A.`CELL_ID`,A.`NBR_BSC_ID`,A.`NBR_CELL_ID`
+					,(B.MAX_PRI+2) AS `RANK`,''PRI_PRIORITY'' AS `PRI_KIND`
+				FROM `',GT_DB,'`.opt_inter_irat_pri a
+				JOIN `',GT_DB,'`.tmp_nbr_priority B
+				ON A.`RNC_ID`=B.`RNC_ID` AND A.`CELL_ID`=B.`CELL_ID` 
+				WHERE  (B.MAX_PRI <>0 AND B.MIN_PRI =0) AND A.NBR_TYPE=0;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','Step4', NOW());
+	
+	SET @SqlCmd=CONCAT('INSERT INTO `',GT_DB,'`.`tmp_opt_inter_irat_pri`
+				(`RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`)
+				SELECT A.`RNC_ID`,A.`CELL_ID`,A.`NBR_BSC_ID`,A.`NBR_CELL_ID`,1,
+				''PRI_PRIORITY'' AS `PRI_KIND`
+				FROM `',GT_DB,'`.opt_inter_irat_pri A
+				JOIN `',GT_DB,'`.tmp_nbr_priority B
+				ON A.`CELL_ID` = B.CELL_ID AND A.`RNC_ID` = B.RNC_ID
+				WHERE (B.MAX_PRI =0 AND B.MIN_PRI =0) AND A.NBR_TYPE=3;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('INSERT INTO `',GT_DB,'`.`tmp_opt_inter_irat_pri`
+				(`RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`)
+				SELECT A.`RNC_ID`,A.`CELL_ID`,A.`NBR_BSC_ID`,A.`NBR_CELL_ID`,2,
+				''PRI_PRIORITY'' AS `PRI_KIND`
+				FROM `',GT_DB,'`.opt_inter_irat_pri A
+				JOIN `',GT_DB,'`.tmp_nbr_priority B
+				ON A.`CELL_ID` = B.CELL_ID AND A.`RNC_ID` = B.RNC_ID
+				WHERE (B.MAX_PRI =0 AND B.MIN_PRI =0) AND A.NBR_TYPE=0;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('INSERT INTO `',GT_DB,'`.`tmp_opt_inter_irat_pri`
+				(`RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`)
+				SELECT A.`RNC_ID`,A.`CELL_ID`,A.`NBR_BSC_ID`,A.`NBR_CELL_ID`,1,
+				''PRI_PRIORITY'' AS `PRI_KIND`
+				FROM `',GT_DB,'`.opt_inter_irat_pri A
+				WHERE A.PRIORITY IS NULL AND A.NBR_TYPE=0;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','Step6', NOW());	
+	SET @SqlCmd=CONCAT('INSERT INTO `',GT_DB,'`.`tmp_opt_inter_irat_pri`
+				(	`RNC_ID`,
+					`CELL_ID`,
+					`NBR_BSC_ID`,
+					`NBR_CELL_ID`,
+					`RANK`,
+					`PRI_KIND`)
+				SELECT `RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`
+				FROM
+				(
+					SELECT `RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`IRAT_EVT_CNT`,
+						@num := IF(@RNC_ID=RNC_ID AND @CELL_ID = CELL_ID , IF(@IRAT_EVT_CNT=IRAT_EVT_CNT,@num ,@num+1), 1) AS `RANK`,
+						@RNC_ID := RNC_ID AS dummy1,
+						@CELL_ID := CELL_ID AS dummy2, 
+						@IRAT_EVT_CNT := IRAT_EVT_CNT AS dummy3, 
+						''PRI_IRAT_EVENT'' AS `PRI_KIND`
+					FROM ',GT_DB,'.opt_inter_irat_pri  t ,(SELECT @num := 0) r,(SELECT @RNC_ID:='''') s,(SELECT @CELL_ID:='''') w,(SELECT @IRAT_EVT_CNT:=NULL) q
+					ORDER BY  `RNC_ID`,`CELL_ID`,`IRAT_EVT_CNT` DESC ,`NBR_BSC_ID`,`NBR_CELL_ID` 
+				) AA;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','Step7', NOW());	
+	SET @SqlCmd=CONCAT('INSERT INTO `',GT_DB,'`.`tmp_opt_inter_irat_pri`
+				(
+					`RNC_ID`,
+					`CELL_ID`,
+					`NBR_BSC_ID`,
+					`NBR_CELL_ID`,
+					`RANK`,
+					`PRI_KIND`)
+				SELECT `RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`
+				FROM
+				(
+					SELECT `RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`AVG_RSSI`,
+						@num := IF(@RNC_ID=RNC_ID AND @CELL_ID = CELL_ID , IF(@AVG_RSSI=AVG_RSSI,@num ,@num+1), 1) AS `RANK`,
+						@RNC_ID := RNC_ID AS dummy1,
+						@CELL_ID := CELL_ID AS dummy2, 
+						@AVG_RSSI := AVG_RSSI AS dummy3, 
+						''PRI_RSSI'' AS `PRI_KIND`
+					FROM ',GT_DB,'.opt_inter_irat_pri  t ,(SELECT @num := 0) r,(SELECT @RNC_ID:='''') s,(SELECT @CELL_ID:='''') w,(SELECT @AVG_RSSI:=NULL) q
+					WHERE AVG_RSSI IS NOT NULL	
+					ORDER BY  `RNC_ID`,`CELL_ID`,`AVG_RSSI` DESC,`NBR_BSC_ID`,`NBR_CELL_ID`  
+				) AA;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 	
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS `',GT_DB,'`.tmp_avg_rssi ;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.tmp_avg_rssi ENGINE=MYISAM
+				SELECT RNC_ID,CELL_ID,MAX(RANK) AS PRI_MAX FROM ',GT_DB,'.tmp_opt_inter_irat_pri 
+				WHERE PRI_KIND=''PRI_RSSI''
+				GROUP BY RNC_ID,CELL_ID;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.`tmp_opt_inter_irat_pri`
+				(`RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`)
+				SELECT B.`RNC_ID`,B.`CELL_ID`,B.`NBR_BSC_ID`,B.`NBR_CELL_ID`
+					,(A.PRI_MAX+1) AS `RANK`,''PRI_RSSI'' AS `PRI_KIND`
+				FROM ',GT_DB,'.tmp_avg_rssi A
+				JOIN ',GT_DB,'.opt_inter_irat_pri B
+				ON A.`RNC_ID`=B.`RNC_ID`
+				AND A.`CELL_ID`=B.`CELL_ID` 
+				WHERE B.AVG_RSSI IS NULL;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','Step8', NOW());	
+	SET @SqlCmd=CONCAT('INSERT INTO `',GT_DB,'`.`tmp_opt_inter_irat_pri`
+				(
+					`RNC_ID`,
+					`CELL_ID`,
+					`NBR_BSC_ID`,
+					`NBR_CELL_ID`,
+					`RANK`,
+					`PRI_KIND`)
+				SELECT `RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`
+				FROM
+				(
+					SELECT `RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`IRAT_CALL_SUCCESS`,
+						@num := IF(@RNC_ID=RNC_ID AND @CELL_ID = CELL_ID , IF(@IRAT_CALL_SUCCESS=IRAT_CALL_SUCCESS,@num ,@num+1), 1) AS `RANK`,
+						@RNC_ID := RNC_ID AS dummy1,
+						@CELL_ID := CELL_ID AS dummy2, 
+						@IRAT_CALL_SUCCESS := IRAT_CALL_SUCCESS AS dummy3, 
+						''PRI_IRAT_HO'' AS `PRI_KIND`
+					FROM ',GT_DB,'.opt_inter_irat_pri  t ,(SELECT @num := 0) r,(SELECT @RNC_ID:='''') s,(SELECT @CELL_ID:='''') w,(SELECT @IRAT_CALL_SUCCESS:=NULL) q
+					ORDER BY  `RNC_ID`,`CELL_ID`,`IRAT_CALL_SUCCESS` DESC,`NBR_BSC_ID`,`NBR_CELL_ID`  
+				) AA;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','Step9', NOW());	
+	SET @SqlCmd=CONCAT('INSERT INTO `',GT_DB,'`.`tmp_opt_inter_irat_pri`
+				(
+					`RNC_ID`,
+					`CELL_ID`,
+					`NBR_BSC_ID`,
+					`NBR_CELL_ID`,
+					`RANK`,
+					`PRI_KIND`)
+				SELECT `RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`
+				FROM
+				(
+					SELECT `RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`DISTANCE_METER`,
+						@num := IF(@RNC_ID=RNC_ID AND @CELL_ID = CELL_ID , IF(@DISTANCE_METER=DISTANCE_METER,@num ,@num+1), 1) AS `RANK`,
+						@RNC_ID := RNC_ID AS dummy1,
+						@CELL_ID := CELL_ID AS dummy2, 
+						@DISTANCE_METER := DISTANCE_METER AS dummy3, 
+						''PRI_DISTANCE'' AS `PRI_KIND`
+					FROM ',GT_DB,'.opt_inter_irat_pri  t ,(SELECT @num := 0) r,(SELECT @RNC_ID:='''') s,(SELECT @CELL_ID:='''') w,(SELECT @DISTANCE_METER:=NULL) q
+					WHERE DISTANCE_METER IS NOT NULL
+					ORDER BY `RNC_ID`,`CELL_ID`,`DISTANCE_METER`,`NBR_BSC_ID`,`NBR_CELL_ID`
+				) AA; ');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;  	
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS `',GT_DB,'`.tmp_distance_meter ;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.tmp_distance_meter ENGINE=MYISAM
+				SELECT RNC_ID,CELL_ID,MAX(RANK) AS PRI_MAX FROM ',GT_DB,'.tmp_opt_inter_irat_pri
+				WHERE PRI_KIND=''PRI_DISTANCE''
+				GROUP BY RNC_ID,CELL_ID;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.`tmp_opt_inter_irat_pri`
+				(`RNC_ID`,`CELL_ID`,`NBR_BSC_ID`,`NBR_CELL_ID`,`RANK`,`PRI_KIND`)
+				SELECT B.`RNC_ID`,B.`CELL_ID`,B.`NBR_BSC_ID`,B.`NBR_CELL_ID`
+					,(A.PRI_MAX+1) AS `RANK`,''PRI_DISTANCE'' AS `PRI_KIND`
+				FROM ',GT_DB,'.tmp_distance_meter A
+				JOIN ',GT_DB,'.opt_inter_irat_pri B
+				ON A.`RNC_ID`=B.`RNC_ID`
+				AND A.`CELL_ID`=B.`CELL_ID` 
+				WHERE B.DISTANCE_METER IS NULL;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','Step10', NOW());	
+	SET @SqlCmd=CONCAT('	CREATE TABLE ',GT_DB,'.tmp_pri_sum ENGINE=MYISAM
+				SELECT  RNC_ID,CELL_ID,NBR_BSC_ID,NBR_CELL_ID,
+					SUM(CASE WHEN PRI_KIND=''PRI_IRAT_HO'' THEN RANK ELSE 0 END) AS PRI_IRAT_HO, 
+					SUM(CASE WHEN PRI_KIND=''PRI_IRAT_EVENT'' THEN RANK ELSE 0 END) AS PRI_IRAT_EVENT,  
+					SUM(CASE WHEN PRI_KIND=''PRI_RSSI'' THEN RANK ELSE 0 END) AS PRI_RSSI, 
+					SUM(CASE WHEN PRI_KIND=''PRI_DISTANCE'' THEN RANK ELSE 0 END) AS PRI_DISTANCE,  
+					SUM(CASE WHEN PRI_KIND=''PRI_PRIORITY'' THEN RANK ELSE 0 END) AS PRI_PRIORITY,  
+					2 AS PRI_ANG 
+				FROM ',GT_DB,'.tmp_opt_inter_irat_pri FORCE INDEX(IX_RNC_CELL)
+				GROUP BY RNC_ID,CELL_ID,NBR_BSC_ID,NBR_CELL_ID ; ');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('CREATE INDEX IX_RNC_CELL ON ',GT_DB,'.tmp_pri_sum(`CELL_ID`,`RNC_ID`,`NBR_CELL_ID`,`NBR_BSC_ID`);');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.opt_inter_irat_pri A,
+				',GT_DB,'.tmp_pri_sum B 
+				SET A.`PRI_PRIORITY` 	= B.PRI_PRIORITY,
+				  A.`PRI_IRAT_HO` 	= B.PRI_IRAT_HO,
+				  A.`PRI_IRAT_EVENT` 	= B.PRI_IRAT_EVENT,
+				  A.`PRI_RSSI` 		= B.PRI_RSSI,
+				  A.`PRI_DISTANCE` 	= B.PRI_DISTANCE,
+				  A.`PRI_ANG` 	= B.PRI_ANG
+				WHERE 
+				    A.`CELL_ID` = B.CELL_ID
+				    AND A.`RNC_ID` = B.RNC_ID
+				    AND A.`NBR_CELL_ID` = B.NBR_CELL_ID
+				    AND A.`NBR_BSC_ID` = B.NBR_BSC_ID;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('DELETE FROM ',GT_DB,'.opt_inter_irat_pri WHERE PRI_PRIORITY=0;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.opt_inter_irat_pri
+			SET `PRI_RSSI` = 999
+			WHERE NBR_TYPE=0 AND IRAT_CALL_SUCCESS=0 AND  IRAT_EVT_CNT > 0
+			AND (AVG_RSSI<',@STANDARD_RSSI,' OR AVG_RSSI IS NULL);');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.opt_inter_irat_pri
+			    SET `PRI_ANG` = CASE WHEN (NBR_AZIMUTH_ANGLE >=0 AND NBR_AZIMUTH_ANGLE <=120) THEN 1
+							WHEN (NBR_AZIMUTH_ANGLE >120 AND NBR_AZIMUTH_ANGLE <=240) THEN 2
+							WHEN (NBR_AZIMUTH_ANGLE >240 AND NBR_AZIMUTH_ANGLE <=360) THEN 3
+							ELSE 1 END;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','Step11', NOW());
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_table_opt_nbr_result;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','Step14', NOW());
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.tmp_table_opt_nbr_result ENGINE=MYISAM
+				SELECT  result.RNC_ID, result.CELL_ID, result.NBR_BSC_ID, result.NBR_CELL_ID,NBR_TYPE,DISTANCE_METER,PRIORITY_WEIGHTED
+					, @curRank := IF(@RNC_ID=RNC_ID AND @CELL_ID = CELL_ID ,IF((@PRIORITY_WEIGHTED=PRIORITY_WEIGHTED) AND (@DISTANCE_METER=DISTANCE_METER),@curRank ,@curRank+@curCount),1) AS RANK
+					, @curRank1 := IF(@RNC_ID=RNC_ID AND @CELL_ID = CELL_ID ,IF((@PRIORITY_WEIGHTED=PRIORITY_WEIGHTED) AND (@DISTANCE_METER=DISTANCE_METER),@curRank ,0),0) AS curRank1
+					, @curCount := IF(@curRank=@curRank1 ,@curCount+1 ,1) AS curCount
+					, @RNC_ID := RNC_ID AS dummy1
+					, @CELL_ID := CELL_ID AS dummy2
+					, @PRIORITY_WEIGHTED := PRIORITY_WEIGHTED AS dummy3
+					, @DISTANCE_METER := DISTANCE_METER AS dummy4
+				FROM 
+				(SELECT *,((2*PRI_IRAT_HO) +PRI_IRAT_EVENT + PRI_RSSI + POWER(PRI_DISTANCE,1.5)*PRI_ANG + PRI_PRIORITY) AS PRIORITY_WEIGHTED FROM ',GT_DB,'.opt_inter_irat_pri)result ,
+				(SELECT @curRank := 0) r,(SELECT @RNC_ID:='') s,(SELECT @CELL_ID:='') w,(SELECT @PRIORITY_WEIGHTED:=NULL) q,(SELECT @DISTANCE_METER:=NULL) v,(SELECT @curRank1 := 0) u,(SELECT @curCount := 0) m
+				ORDER BY result.RNC_ID,result.CELL_ID ,PRIORITY_WEIGHTED ,DISTANCE_METER;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('CREATE INDEX IX_TMP_TMP_TABLE_OPT_NBR_RESULT ON ',GT_DB,'.tmp_table_opt_nbr_result (`CELL_ID`,`RNC_ID`,`NBR_CELL_ID`,`NBR_BSC_ID`);');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','Step15', NOW());
+	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.`opt_nbr_result_irat`
+				    (`RNC_ID`,
+				     `CELL_ID`,
+				     `NBR_BSC_ID`,
+				     `NBR_CELL_ID`,
+				     `NEIGHBOR_TYPE`,
+				     `IRAT_EVT_CNT`,
+				     `AVG_RSSI`,
+				     `IRAT_CALL_SUCCESS`,
+				     `DISTANCE`,
+				     `RANK`,
+				     `longitude`,
+				     `latitude`,
+				     `height`,
+				     `PRI_WEIGHTED`,
+				     `NBR_PRIORITY`,
+				     `ACTION`
+				    )	
+				SELECT DISTINCT
+				  A.`RNC_ID`,
+				  A.`CELL_ID`,
+				  A.`NBR_BSC_ID`,
+				  A.`NBR_CELL_ID`,
+				  IF(A.`NBR_TYPE` = 3, ''CM IRat'', ''N/A'') AS NEIGHBOR_TYPE,
+				  CASE WHEN B.`IRAT_EVT_CNT` IS NULL THEN 0 ELSE B.`IRAT_EVT_CNT` END AS `IRAT_EVT_CNT`,
+				  CASE WHEN B.`AVG_RSSI` IS NULL THEN NULL ELSE B.`AVG_RSSI` END AS `AVG_RSSI`,
+				  CASE WHEN B.`IRAT_CALL_SUCCESS` IS NULL THEN 0 ELSE B.`IRAT_CALL_SUCCESS` END AS `IRAT_CALL_SUCCESS`,
+				  CASE WHEN B.`DISTANCE_METER` IS NULL THEN NULL ELSE B.`DISTANCE_METER` END AS `DISTANCE`,
+				  A.`RANK`,
+				  C.LONGITUDE AS LONGITUDE, C.LATITUDE AS LATITUDE, 1000 AS HEIGHT,
+				  A.PRIORITY_WEIGHTED AS PRI_WEIGHTED,
+				  B.PRIORITY AS NBR_PRIORITY,
+				  CASE WHEN (A.`RANK`<=',@MAX_IRAT_NBR,') AND A.`NBR_TYPE`=3 THEN ''Keep''
+					WHEN (A.`RANK`>',@MAX_IRAT_NBR,') AND A.`NBR_TYPE`=3 THEN ''REMOVE''
+					WHEN (A.`RANK`<=',@MAX_IRAT_NBR,') AND A.`NBR_TYPE`=0 AND PRIORITY_WEIGHTED<999 THEN ''ADD''
+					WHEN (A.`RANK`>',@MAX_IRAT_NBR,') AND A.`NBR_TYPE`=0 AND PRIORITY_WEIGHTED<999 THEN ''NONE''
+					WHEN PRIORITY_WEIGHTED>999 THEN ''IGNORE''
+				  END AS ACTION
+				FROM `',GT_DB,'`.`tmp_table_opt_nbr_result` A
+				LEFT JOIN `',GT_DB,'`.`opt_inter_irat_pri` B
+				ON A.CELL_ID=B.CELL_ID
+				AND A.RNC_ID=B.RNC_ID
+				AND A.NBR_CELL_ID=B.NBR_CELL_ID
+				AND A.NBR_BSC_ID=B.NBR_BSC_ID
+				LEFT JOIN ',CURRENT_NT_DB,'.nt_current C
+				ON A.NBR_CELL_ID = C.CELL_ID AND A.NBR_BSC_ID = C.RNC_ID
+				ORDER BY A.CELL_ID,A.`RANK`
+				;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS `',GT_DB,'`.`tmp_opt_inter_irat`;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_opt_inter_irat_pri;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_pri_sum;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_avg_rssi;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;  	
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS `',GT_DB,'`.tmp_distance_meter ;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS `',GT_DB,'`.tmp_nbr_priority;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS `',GT_DB,'`.tmp_irat_priority;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_table_opt_nbr_result;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_opt_inter_irat_noncm;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
+	

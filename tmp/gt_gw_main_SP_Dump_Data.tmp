@@ -1,0 +1,60 @@
+CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Dump_Data`(IN GT_DB VARCHAR(100))
+BEGIN
+	DECLARE START_TIME DATETIME DEFAULT SYSDATE();
+	DECLARE FILEDATE VARCHAR(18) DEFAULT RIGHT(GT_DB,18);
+	DECLARE FILE_ENDTIME VARCHAR(20) DEFAULT CONCAT(LEFT(FILEDATE,4),'-',SUBSTRING(FILEDATE,5,2),'-',SUBSTRING(FILEDATE,7,2),' ', SUBSTRING(FILEDATE,15,2),':',SUBSTRING(FILEDATE,17,2),':00');
+	SET FILE_ENDTIME=REPLACE(FILE_ENDTIME,'00:00:00','23:59:59') ;	
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Dump_Data','Create table_call_dump DUMP_TYPE=1', NOW());
+	
+	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.table_call_dump 
+			    SELECT 1 AS DUMP_TYPE,A.* FROM ',GT_DB,'.table_call A
+			    WHERE CALL_TYPE IN (15,19) AND RRC_REQUEST_TYPE != 12 ;'); 
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('DELETE FROM  ',GT_DB,'.table_call 
+			    WHERE CALL_TYPE IN (15,19) AND RRC_REQUEST_TYPE != 12 ;'); 
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Dump_Data','DUMP_TYPE=3', NOW());
+	
+	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.table_call_dump 
+			    SELECT 3 AS DUMP_TYPE,A.* FROM ',GT_DB,'.table_call A
+			    WHERE IMSI=''fffffffffffffff'';');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;		
+			
+	SET @SqlCmd=CONCAT('DELETE FROM  ',GT_DB,'.table_call 
+			    WHERE IMSI=''fffffffffffffff'';');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Dump_Data','DUMP_TYPE=9', NOW());
+	
+	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.table_call_dump 
+			    SELECT 9 AS DUMP_TYPE,A.* FROM ',GT_DB,'.table_call A
+			    WHERE DATA_HOUR  NOT IN (0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23);');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;		
+			
+	SET @SqlCmd=CONCAT('DELETE FROM  ',GT_DB,'.table_call 
+			    WHERE DATA_HOUR  NOT IN (0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23);');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	
+	
+	INSERT INTO gt_gw_main.SP_LOG VALUES(GT_DB,'SP_Dump_Data',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
+	
+END
+utf8
+utf8_general_ci
+latin1_swedish_ci

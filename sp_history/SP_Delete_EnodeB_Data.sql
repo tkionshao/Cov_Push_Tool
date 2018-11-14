@@ -1,0 +1,22 @@
+DELIMITER $$
+USE `operations_monitor`$$
+DROP PROCEDURE IF EXISTS `SP_CreateDB_LTE`$$
+CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Delete_EnodeB_Data`()
+BEGIN
+	DECLARE EXECUTE_TIME DATETIME DEFAULT SYSDATE();
+	
+	SET @SqlCmd=CONCAT('
+	DELETE FROM enodeb_history_detail
+	WHERE DATA_TIME < DATE_SUB((''',EXECUTE_TIME,'''),INTERVAL 7 DAY)
+	');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	
+	
+	
+	
+	
+END$$
+DELIMITER ;
