@@ -6,7 +6,7 @@ filename=/${SPVERSION}.sql
 MYSQLCMD="mysqldump ${MYSQL_CONN} --default-character-set=utf8 "
 DBCONFIGFILE=${path}/db.config
 # SP export
-rm -rf ${path}
+rm -rf ${SPALLINONE}/*
 mkdir ${path} 
 
 echo "use gt_gw_main;" >> $path$filename
