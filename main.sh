@@ -3,6 +3,9 @@ source ./instance.cnf
 NOW=`date +%Y%m%d`
 # dump all in one sp
 read -p "Version? (ex:777_07.02 or SP_777)" SQLFILENAME
+git pull 
+git checkout ${BRANCHNAME}
+
 sh ./bin/all_in_one_dump.sh ${SQLFILENAME}
 zip -r ./sp_release/tmp_sql_file.zip ./sp_release/${SQLFILENAME}/
 
