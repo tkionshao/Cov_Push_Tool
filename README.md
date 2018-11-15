@@ -1,5 +1,5 @@
-### This is a whole branch for DTAG
-# INSTALL git 2.0 on Centos
+# This is a compelet branch for DTAG R3P3
+## INSTALL git 2.0 on Centos
 sudo yum remove git<br>
 sudo yum install epel-release<br>
 sudo yum install https://centos6.iuscommunity.org/ius-release.rpm<br>
@@ -7,10 +7,10 @@ sudo yum install git2u<br>
 
 git --version
 
-# INSTALL ZIP
+## INSTALL ZIP
 sudo yum install zip
 
-# Running script
+## Running script
 main.sh
   - backup a all in one sp in sp_release.
   - backup separate single sp in sp_history
