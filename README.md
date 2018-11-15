@@ -1,8 +1,9 @@
+### This is a whole branch for DTAG
 # INSTALL git 2.0 on Centos
-sudo yum remove git
-sudo yum install epel-release
-sudo yum install https://centos7.iuscommunity.org/ius-release.rpm
-sudo yum install git2u
+sudo yum remove git<br>
+sudo yum install epel-release<br>
+sudo yum install https://centos6.iuscommunity.org/ius-release.rpm<br>
+sudo yum install git2u<br>
 
 git --version
 
