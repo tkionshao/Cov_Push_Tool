@@ -1,8 +1,8 @@
 # INSTALL git 2.0 on Centos
-sudo yum remove git
-sudo yum install epel-release
-sudo yum install https://centos7.iuscommunity.org/ius-release.rpm
-sudo yum install git2u
+>sudo yum remove git
+>sudo yum install epel-release
+>sudo yum install https://centos7.iuscommunity.org/ius-release.rpm
+>sudo yum install git2u
 
 git --version
 
