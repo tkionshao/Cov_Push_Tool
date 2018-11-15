@@ -5,6 +5,7 @@ CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Purge_Hourly_Data_LTE`(IN GT_DB VARCHAR
 BEGIN
 	DECLARE START_TIME DATETIME DEFAULT SYSDATE();
 	DECLARE DATA_DATE VARCHAR(20) DEFAULT DATE(SUBSTRING(RIGHT(GT_DB,18),1,8));
+	DECLARE PU_ID VARCHAR(100) DEFAULT gt_strtok(GT_DB,2,'_');
 	SET @@session.group_concat_max_len = @@global.max_allowed_packet;
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Purge_Hourly_Data_LTE','delete hourly tables', NOW());
@@ -12,16 +13,16 @@ BEGIN
 	IF KIND = 'AP' THEN 
 		SELECT COUNT(*) INTO @CNT FROM `information_schema`.`SCHEMATA` WHERE `SCHEMA_NAME` = GT_DB;
 		IF @CNT =0 THEN
-			SET @SqlCmd=CONCAT('DELETE FROM ',GT_COVMO,'.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''';');
+			SET @SqlCmd=CONCAT('DELETE FROM ',GT_COVMO,'.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''' AND PU_ID= ''',PU_ID,''';');
 			PREPARE Stmt FROM @SqlCmd;
 			EXECUTE Stmt;
 			DEALLOCATE PREPARE Stmt;
 			
-			SET @SqlCmd=CONCAT('DELETE FROM gt_gw_main.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''';');
+			SET @SqlCmd=CONCAT('DELETE FROM gt_gw_main.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''' AND PU_ID= ''',PU_ID,''';');
 			PREPARE Stmt FROM @SqlCmd;
 			EXECUTE Stmt;
 			DEALLOCATE PREPARE Stmt;
-			INSERT INTO gt_gw_main.sp_log VALUES('gt_gw_main','SP_Purge_Hourly_Data_LTE',CONCAT('DELETE ',KIND,' table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''''), NOW());	
+			INSERT INTO gt_gw_main.sp_log VALUES('gt_gw_main','SP_Purge_Hourly_Data_LTE',CONCAT('DELETE ',KIND,' table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''' AND PU_ID= ''',PU_ID,''''), NOW());	
 		ELSE
 			SET @SqlCmd=CONCAT('SELECT GROUP_CONCAT(table_name SEPARATOR ''|'') into @delete_str FROM information_schema.TABLES 
 			WHERE table_schema = ''',GT_DB,''' AND 
@@ -51,14 +52,14 @@ BEGIN
 					SET @v_i=@v_i+1; 
 				END;
 				END WHILE;
-				INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Purge_Hourly_Data_LTE',CONCAT('DELETE ',KIND,' hourly table WHERE DATA_DATE = ''',DATA_DATE,''''), NOW());
+				INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Purge_Hourly_Data_LTE',CONCAT('DELETE ',KIND,' hourly table WHERE DATA_DATE = ''',DATA_DATE,''' AND PU_ID= ''',PU_ID,''''), NOW());
 		
-				SET @SqlCmd=CONCAT('DELETE FROM ',GT_COVMO,'.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''';');
+				SET @SqlCmd=CONCAT('DELETE FROM ',GT_COVMO,'.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''' AND PU_ID= ''',PU_ID,''';');
 				PREPARE Stmt FROM @SqlCmd;
 				EXECUTE Stmt;
 				DEALLOCATE PREPARE Stmt;
 				
-				SET @SqlCmd=CONCAT('DELETE FROM gt_gw_main.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''';');
+				SET @SqlCmd=CONCAT('DELETE FROM gt_gw_main.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''' AND PU_ID= ''',PU_ID,''';');
 				PREPARE Stmt FROM @SqlCmd;
 				EXECUTE Stmt;
 				DEALLOCATE PREPARE Stmt;
@@ -69,17 +70,17 @@ BEGIN
 	ELSEIF KIND = 'DAILY' THEN
 		SELECT COUNT(*) INTO @CNT FROM `information_schema`.`SCHEMATA` WHERE `SCHEMA_NAME` = GT_DB;
 		IF @CNT =0 THEN
-			SET @SqlCmd=CONCAT('DELETE FROM ',GT_COVMO,'.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''';');
+			SET @SqlCmd=CONCAT('DELETE FROM ',GT_COVMO,'.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''' AND PU_ID= ''',PU_ID,''';');
 			PREPARE Stmt FROM @SqlCmd;
 			EXECUTE Stmt;
 			DEALLOCATE PREPARE Stmt;
 	
-			SET @SqlCmd=CONCAT('DELETE FROM gt_gw_main.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''';');
+			SET @SqlCmd=CONCAT('DELETE FROM gt_gw_main.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''' AND PU_ID= ''',PU_ID,''';');
 			PREPARE Stmt FROM @SqlCmd;
 			EXECUTE Stmt;
 			DEALLOCATE PREPARE Stmt;
 			
-			INSERT INTO gt_gw_main.sp_log VALUES('gt_gw_main','SP_Purge_Hourly_Data_LTE',CONCAT('DELETE ',KIND,' table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''''), NOW());
+			INSERT INTO gt_gw_main.sp_log VALUES('gt_gw_main','SP_Purge_Hourly_Data_LTE',CONCAT('DELETE ',KIND,' table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''' AND PU_ID= ''',PU_ID,''''), NOW());
 		ELSE
 			SET @SqlCmd=CONCAT('SELECT GROUP_CONCAT(table_name SEPARATOR ''|'') into @delete_str FROM information_schema.TABLES 
 			WHERE table_schema = ''',GT_DB,''' AND 
@@ -109,18 +110,18 @@ BEGIN
 				END;
 				END WHILE;
 				
-				INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Purge_Hourly_Data_LTE',CONCAT('DELETE ',KIND,' hourly table WHERE DATA_DATE = ''',DATA_DATE,''''), NOW());
-				SET @SqlCmd=CONCAT('DELETE FROM ',GT_COVMO,'.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''';');
+				INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Purge_Hourly_Data_LTE',CONCAT('DELETE ',KIND,' hourly table WHERE DATA_DATE = ''',DATA_DATE,''' AND PU_ID= ''',PU_ID,''''), NOW());
+				SET @SqlCmd=CONCAT('DELETE FROM ',GT_COVMO,'.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''' AND PU_ID= ''',PU_ID,''';');
 				PREPARE Stmt FROM @SqlCmd;
 				EXECUTE Stmt;
 				DEALLOCATE PREPARE Stmt;
 				
-				SET @SqlCmd=CONCAT('DELETE FROM gt_gw_main.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''';');
+				SET @SqlCmd=CONCAT('DELETE FROM gt_gw_main.table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''' AND PU_ID= ''',PU_ID,''';');
 				PREPARE Stmt FROM @SqlCmd;
 				EXECUTE Stmt;
 				DEALLOCATE PREPARE Stmt;
 				
-				INSERT INTO gt_gw_main.sp_log VALUES('gt_gw_main','SP_Purge_Hourly_Data_LTE',CONCAT('DELETE ',KIND,' table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''''), NOW());
+				INSERT INTO gt_gw_main.sp_log VALUES('gt_gw_main','SP_Purge_Hourly_Data_LTE',CONCAT('DELETE ',KIND,' table_call_cnt WHERE DATA_DATE = ''',DATA_DATE,''' AND PU_ID= ''',PU_ID,''''), NOW());
 			ELSE
 				SELECT 'no data to delete!' AS Message;
 			END IF;

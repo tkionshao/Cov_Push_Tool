@@ -13,44 +13,44 @@ BEGIN
 	
 	
 	
-	INSERT INTO gt_gw_main.SP_LOG VALUES(O_GT_DB,'Sp_Sub_Generate_ACO_Report','START', START_TIME);
+	INSERT INTO gt_gw_main.SP_LOG VALUES(O_GT_DB,'Sp_Sub_Generate_ACO_Report','Start', START_TIME);
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'Sp_Sub_Generate_ACO_Report','Step1', NOW());
-	SET @SqlCmd=CONCAT('DROP TABLE  IF EXISTS ',GT_DB,'.tmp_table_aco_report;');
+	SET @SqlCmd=CONCAT('DROP TABLE  IF EXISTS ',GT_DB,'.tmp_opt_aco_traffic_unbalance;');
 	PREPARE stmt FROM @sqlcmd;
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;
 	
-	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`tmp_table_aco_report` (
-				  `RNC_ID` MEDIUMINT(9) DEFAULT NULL,
-				  `CELL_ID` MEDIUMINT(9) DEFAULT NULL,
-				  `DATA_DATE` DATETIME DEFAULT NULL,
-				  `DATA_HOUR` TINYINT(4) DEFAULT NULL,
-				  `PS_CALL_COUNT` MEDIUMINT(9) DEFAULT ''0'',
-				  `CS_CALL_COUNT` MEDIUMINT(9) DEFAULT ''0'',
-				  `AVG_RTWP` DOUBLE DEFAULT NULL,
-				  `MAX_RTWP` DOUBLE DEFAULT NULL,
-				  `MIN_THROUGHPUT` DOUBLE DEFAULT NULL,
-				  `MAX_THROUGHPUT` DOUBLE DEFAULT NULL,
-				  `AVG_THROUGHPUT` DOUBLE DEFAULT NULL,
-				  `TRAFFIC_VOLUME_DIST` DOUBLE DEFAULT NULL,
-				  `TOTAL_ERLANG_DIST` DOUBLE DEFAULT NULL,
-				  `BLOCK_RATE` DOUBLE DEFAULT NULL,
-				  `BLOCK_CALL_CNT` MEDIUMINT(9) DEFAULT ''0'',
-				  `BLOCK_WEIGHT` DOUBLE DEFAULT NULL,
-				  `AVG_TRA_HIGH_THAN_NEB` DOUBLE DEFAULT NULL,
-				  `NBR_CNT` MEDIUMINT(9) DEFAULT NULL,
-				  `CALL_CONCURRENT` MEDIUMINT(9) DEFAULT NULL,
-				  `FACTOR` DOUBLE DEFAULT NULL,
-				  `AVG_TRA_DIFF_RATE` DOUBLE DEFAULT NULL,
-				  `MAX_TRA_DIFF_RATE` DOUBLE DEFAULT NULL,
-				  KEY `table_aco_report_idx1` (`CELL_ID`,`DATA_HOUR`)
-				) ENGINE=MYISAM DEFAULT CHARSET=latin1;');
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`tmp_opt_aco_traffic_unbalance` (
+				  `RNC_ID` mediumint(9) DEFAULT NULL,
+				  `CELL_ID` mediumint(9) DEFAULT NULL,
+				  `DATA_DATE` datetime DEFAULT NULL,
+				  `DATA_HOUR` tinyint(4) DEFAULT NULL,
+				  `PS_CALL_COUNT` mediumint(9) DEFAULT ''0'',
+				  `CS_CALL_COUNT` mediumint(9) DEFAULT ''0'',
+				  `AVG_RTWP` double DEFAULT NULL,
+				  `MAX_RTWP` double DEFAULT NULL,
+				  `MIN_THROUGHPUT` double DEFAULT NULL,
+				  `MAX_THROUGHPUT` double DEFAULT NULL,
+				  `AVG_THROUGHPUT` double DEFAULT NULL,
+				  `TRAFFIC_VOLUME_DIST` double DEFAULT NULL,
+				  `TOTAL_ERLANG_DIST` double DEFAULT NULL,
+				  `BLOCK_RATE` double DEFAULT NULL,
+				  `BLOCK_CALL_CNT` mediumint(9) DEFAULT ''0'',
+				  `BLOCK_WEIGHT` double DEFAULT NULL,
+				  `AVG_TRA_HIGH_THAN_NEB` double DEFAULT NULL,
+				  `NBR_CNT` mediumint(9) DEFAULT NULL,
+				  `CALL_CONCURRENT` mediumint(9) DEFAULT NULL,
+				  `FACTOR` double DEFAULT NULL,
+				  `AVG_TRA_DIFF_RATE` double DEFAULT NULL,
+				  `MAX_TRA_DIFF_RATE` double DEFAULT NULL,
+				  KEY `opt_aco_traffic_unbalance_idx1` (`CELL_ID`,`DATA_HOUR`)
+				) ENGINE=MyISAM DEFAULT CHARSET=latin1;');
 	PREPARE stmt FROM @sqlcmd;
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;	
 		
-	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.tmp_table_aco_report
+	SET @SqlCmd=CONCAT('Insert into ',GT_DB,'.tmp_opt_aco_traffic_unbalance
 				SELECT
 					RNC_ID,CELL_ID,DATA_DATE,DATA_HOUR
 					,SUM(PS_CALL_COUNT) AS PS_CALL_COUNT
@@ -71,7 +71,7 @@ BEGIN
 					,NULL AS FACTOR
 					,NULL AS AVG_TRA_DIFF_RATE
 					,NULL AS MAX_TRA_DIFF_RATE
-				FROM ',GT_DB,'.table_aco_update
+				FROM ',GT_DB,'.opt_aco_traffic
 				GROUP BY RNC_ID,CELL_ID,DATA_DATE,DATA_HOUR;
 			');
 	PREPARE Stmt FROM @SqlCmd;
@@ -84,7 +84,7 @@ BEGIN
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;
 	
-	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_rtwp_',WORKER_ID,' AS 
+	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_rtwp_',WORKER_ID,' as 
 				SELECT RNC_ID,CELL_ID,DATA_DATE,DATA_HOUR,AVG(COM_MEAS_VALUE) AS AVG_COM_MEAS_VALUE, MAX(COM_MEAS_VALUE) AS MAX_COM_MEAS_VALUE 
 				FROM  ',GT_DB,'.table_nbap_cmr
 				WHERE COM_MEAS_TYPE_ID=''1''
@@ -94,7 +94,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.tmp_table_aco_report A 
+	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.tmp_opt_aco_traffic_unbalance A 
 				JOIN ',GT_DB,'.tmp_rtwp_',WORKER_ID,' B
 				ON A.CELL_ID=B.CELL_ID AND A.RNC_ID=B.RNC_ID
 				AND A.DATA_DATE=B.DATA_DATE AND A.DATA_HOUR=B.DATA_HOUR
@@ -110,9 +110,9 @@ BEGIN
 	PREPARE stmt FROM @sqlcmd;
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;
-	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.tmp_aco_nt AS 
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.tmp_aco_nt as 
 				SELECT A.* FROM  ',CURRENT_NT_DB,'.nt_current A
-				INNER JOIN (SELECT DISTINCT RNC_ID,CELL_ID FROM ',GT_DB,'.tmp_table_aco_report) B
+				INNER JOIN (SELECT DISTINCT RNC_ID,CELL_ID FROM ',GT_DB,'.tmp_opt_aco_traffic_unbalance) B
 				ON A.RNC_ID=B.RNC_ID AND A.CELL_ID=B.CELL_ID;
 			');
 	PREPARE Stmt FROM @SqlCmd;
@@ -129,7 +129,7 @@ BEGIN
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;
 	
-	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_aco_neighbor_',WORKER_ID,' AS 		
+	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_aco_neighbor_',WORKER_ID,' as 		
 				SELECT DISTINCT A.RNC_ID,A.CELL_ID,B.NBR_RNC_ID,B.NBR_CELL_ID FROM ',GT_DB,'.tmp_aco_nt A 
 				INNER JOIN  ',CURRENT_NT_DB,'.nt_neighbor_current B 
 				ON A.RNC_ID=B.RNC_ID AND A.CELL_ID=B.CELL_ID
@@ -146,7 +146,7 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.tmp_table_aco_report A ,
+	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.tmp_opt_aco_traffic_unbalance A ,
 				( SELECT RNC_ID,CELL_ID ,COUNT(*) CNT 
 				  FROM ',GT_DB,'.tmp_aco_neighbor_',WORKER_ID,'
 				  GROUP BY RNC_ID,CELL_ID
@@ -166,13 +166,13 @@ BEGIN
 	PREPARE stmt FROM @sqlcmd;
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;
-	SET @SQLCMD=CONCAT ('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_aco_avg_tra_high_web_',WORKER_ID,' AS 
+	SET @SQLCMD=CONCAT ('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_aco_avg_tra_high_web_',WORKER_ID,' as 
 				SELECT AA.RNC_ID,AA.CELL_ID,AA.DATA_HOUR ,TRAFFIC_VOLUME_DIST,(SUM(CASE WHEN TRAFFIC_VOLUME_DIST>TRAFFIC_VOLUME_DIST_NBR*1.2 THEN 1 ELSE 0 END)/NBR_CNT)AS AVG_TRA_HIGH_THAN_NEB
-				FROM ',GT_DB,'.tmp_table_aco_report AA
+				FROM ',GT_DB,'.tmp_opt_aco_traffic_unbalance AA
 				INNER JOIN 
 				(
 					SELECT A.DATA_HOUR,B.RNC_ID,B.CELL_ID,B.NBR_RNC_ID,B.NBR_CELL_ID,A.TRAFFIC_VOLUME_DIST AS TRAFFIC_VOLUME_DIST_NBR
-					FROM ',GT_DB,'.tmp_table_aco_report A
+					FROM ',GT_DB,'.tmp_opt_aco_traffic_unbalance A
 					INNER JOIN ',GT_DB,'.tmp_aco_neighbor_',WORKER_ID,' B
 					ON A.RNC_ID=B.NBR_RNC_ID
 					AND A.CELL_ID=B.NBR_CELL_ID
@@ -184,7 +184,7 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	SET @SQLCMD=CONCAT ('UPDATE ',GT_DB,'.tmp_table_aco_report A,',GT_DB,'.tmp_aco_avg_tra_high_web_',WORKER_ID,' B	
+	SET @SQLCMD=CONCAT ('UPDATE ',GT_DB,'.tmp_opt_aco_traffic_unbalance A,',GT_DB,'.tmp_aco_avg_tra_high_web_',WORKER_ID,' B	
 				SET A.AVG_TRA_HIGH_THAN_NEB=B.AVG_TRA_HIGH_THAN_NEB
 				WHERE A.RNC_ID=B.RNC_ID AND A.CELL_ID=B.CELL_ID AND A.DATA_HOUR=B.DATA_HOUR;
 			');
@@ -192,19 +192,19 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	SET @SQLCMD=CONCAT ('UPDATE ',GT_DB,'.tmp_table_aco_report A,
+	SET @SQLCMD=CONCAT ('UPDATE ',GT_DB,'.tmp_opt_aco_traffic_unbalance A,
 				(
-					SELECT DATA_HOUR ,ACTIVE_SET_CELL_ID CELL_ID ,ACTIVE_SET_RNC_ID RNC_ID,MAX(COUNT) CALL_CONCURRENT 
-					FROM ' ,O_GT_DB,'.table_cell_usage
-					GROUP BY DATA_HOUR,ACTIVE_SET_CELL_ID,ACTIVE_SET_RNC_ID
+					SELECT DATA_HOUR ,CELL_ID ,RNC_ID,MAX(MAX_CONCURRENT_CNT) MAX_CONCURRENT_CNT 
+					FROM ' ,O_GT_DB,'.opt_aco_traffic
+					GROUP BY DATA_HOUR,CELL_ID,RNC_ID
 				)  B	
-				SET A.CALL_CONCURRENT=B.CALL_CONCURRENT
+				SET A.CALL_CONCURRENT=B.MAX_CONCURRENT_CNT
 				WHERE A.RNC_ID=B.RNC_ID AND A.CELL_ID=B.CELL_ID AND A.DATA_HOUR=B.DATA_HOUR;
 			');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	SET @SQLCMD=CONCAT ('UPDATE ',GT_DB,'.tmp_table_aco_report A 
+	SET @SQLCMD=CONCAT ('UPDATE ',GT_DB,'.tmp_opt_aco_traffic_unbalance A 
 				SET FACTOR=POW(TRAFFIC_VOLUME_DIST,0.2) * SQRT(CALL_CONCURRENT) * BLOCK_RATE * AVG_TRA_HIGH_THAN_NEB;
 			');
 	PREPARE Stmt FROM @SqlCmd;
@@ -216,8 +216,8 @@ BEGIN
 	PREPARE stmt FROM @sqlcmd;
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;
-	SET @SQLCMD=CONCAT ('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_aco_neighbor_traffic_',WORKER_ID,' AS 	
-				SELECT A.DATA_DATE,A.DATA_HOUR,B.RNC_ID,B.CELL_ID,MIN(A.TRAFFIC_VOLUME_DIST) NBR_TRAFFIC_VOLUME_DIST FROM ',GT_DB,'.tmp_table_aco_report A
+	SET @SQLCMD=CONCAT ('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_aco_neighbor_traffic_',WORKER_ID,' as 	
+				SELECT A.DATA_DATE,A.DATA_HOUR,B.RNC_ID,B.CELL_ID,MIN(A.TRAFFIC_VOLUME_DIST) NBR_TRAFFIC_VOLUME_DIST FROM ',GT_DB,'.tmp_opt_aco_traffic_unbalance A
 				INNER JOIN  ',GT_DB,'.tmp_aco_neighbor_',WORKER_ID,' B 
 				ON B.NBR_RNC_ID=A.RNC_ID AND B.NBR_CELL_ID=A.CELL_ID
 				GROUP BY A.DATA_DATE,A.DATA_HOUR,B.RNC_ID,B.CELL_ID;
@@ -226,12 +226,12 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	SET @SQLCMD=CONCAT ('CREATE INDEX  tmp_aco_neighbor_traffic_idx1 ON ',GT_DB,'.tmp_aco_neighbor_traffic_',WORKER_ID,'(data_hour,cell_id) ');
+	SET @SQLCMD=CONCAT ('CREATE INDEX  tmp_aco_neighbor_traffic_idx1 on ',GT_DB,'.tmp_aco_neighbor_traffic_',WORKER_ID,'(data_hour,cell_id) ');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	SET @SQLCMD=CONCAT ('UPDATE ',GT_DB,'.tmp_table_aco_report A ,',GT_DB,'.tmp_aco_neighbor_traffic_',WORKER_ID,' b	
+	SET @SQLCMD=CONCAT ('UPDATE ',GT_DB,'.tmp_opt_aco_traffic_unbalance A ,',GT_DB,'.tmp_aco_neighbor_traffic_',WORKER_ID,' b	
 				SET MAX_TRA_DIFF_RATE=(A.TRAFFIC_VOLUME_DIST-B.NBR_TRAFFIC_VOLUME_DIST)/A.TRAFFIC_VOLUME_DIST	 
 				WHERE A.DATA_HOUR=B.DATA_HOUR AND A.CELL_ID=B.CELL_ID AND A.DATA_DATE=B.DATA_DATE AND A.RNC_ID=B.RNC_ID;
 			');
@@ -244,10 +244,10 @@ BEGIN
 	PREPARE stmt FROM @sqlcmd;
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;
-	SET @SQLCMD=CONCAT ('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_aco_neighbor_traffic_summary_',WORKER_ID,' AS 
+	SET @SQLCMD=CONCAT ('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_aco_neighbor_traffic_summary_',WORKER_ID,' as 
 				SELECT A.DATA_DATE,A.DATA_HOUR,B.RNC_ID,B.CELL_ID,B.NBR_RNC_ID,B.NBR_CELL_ID
 				,A.TRAFFIC_VOLUME_DIST NBR_TRAFFIC_VOLUME_DIST 
-				FROM ',GT_DB,'.tmp_table_aco_report A	
+				FROM ',GT_DB,'.tmp_opt_aco_traffic_unbalance A	
 				INNER JOIN  ',GT_DB,'.tmp_aco_neighbor_',WORKER_ID,' B 
 				ON B.NBR_RNC_ID=A.RNC_ID AND B.NBR_CELL_ID=A.CELL_ID;
 			');	
@@ -256,16 +256,16 @@ BEGIN
 	DEALLOCATE PREPARE Stmt;
 		
 	
-	SET @SQLCMD=CONCAT ('CREATE INDEX  tmp_aco_neighbor_traffic_summary_idx1 ON ',GT_DB,'.tmp_aco_neighbor_traffic_summary_',WORKER_ID,'(data_hour,cell_id) ');
+	SET @SQLCMD=CONCAT ('CREATE INDEX  tmp_aco_neighbor_traffic_summary_idx1 on ',GT_DB,'.tmp_aco_neighbor_traffic_summary_',WORKER_ID,'(data_hour,cell_id) ');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	SET @SQLCMD=CONCAT ('UPDATE ',GT_DB,'.tmp_table_aco_report AA ,
+	SET @SQLCMD=CONCAT ('UPDATE ',GT_DB,'.tmp_opt_aco_traffic_unbalance AA ,
 				(
 					SELECT B.RNC_ID,B.CELL_ID,B.DATA_DATE,B.DATA_HOUR
 						,SUM(A.TRAFFIC_VOLUME_DIST-B.NBR_TRAFFIC_VOLUME_DIST)/A.TRAFFIC_VOLUME_DIST/A.NBR_CNT AS AVG_TRA_DIFF_RATE
-					FROM ',GT_DB,'.tmp_table_aco_report A 
+					FROM ',GT_DB,'.tmp_opt_aco_traffic_unbalance A 
 					INNER JOIN ',GT_DB,'.tmp_aco_neighbor_traffic_summary_',WORKER_ID,' b 
 					ON A.DATA_HOUR=B.DATA_HOUR AND A.CELL_ID=B.CELL_ID AND A.DATA_DATE=B.DATA_DATE AND A.RNC_ID=B.RNC_ID
 					WHERE  TRAFFIC_VOLUME_DIST>B.NBR_TRAFFIC_VOLUME_DIST
@@ -279,12 +279,12 @@ BEGIN
 	DEALLOCATE PREPARE Stmt;
 	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'Sp_Sub_Generate_ACO_Report','Step7', NOW());
 	
-	SET @SqlCmd=CONCAT('TRUNCATE TABLE ',GT_DB,'.table_aco_report;');
+	SET @SqlCmd=CONCAT('TRUNCATE TABLE ',GT_DB,'.opt_aco_traffic_unbalance;');
 	PREPARE stmt FROM @sqlcmd;
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;
 	
-	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.`table_aco_report`
+	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.`opt_aco_traffic_unbalance`
 				(`RNC_ID`,
 				     `CELL_ID`,
 				     `DATA_DATE`,
@@ -328,7 +328,7 @@ BEGIN
 				     `CALL_CONCURRENT`,
 				     `FACTOR`,
 				     `AVG_TRA_DIFF_RATE`,
-				     `MAX_TRA_DIFF_RATE` FROM ',GT_DB,'.tmp_table_aco_report;');
+				     `MAX_TRA_DIFF_RATE` FROM ',GT_DB,'.tmp_opt_aco_traffic_unbalance;');
 	PREPARE stmt FROM @sqlcmd;
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;		

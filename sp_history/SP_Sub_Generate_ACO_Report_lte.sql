@@ -92,7 +92,7 @@ BEGIN
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;
 	
-	
+	-- --------------------------------------------------------------------------------------------
 	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_aco_neighbor_',WORKER_ID,' as 		
 	SELECT DISTINCT A.ENODEB_ID,A.CELL_ID,B.NBR_ENODEB_ID,B.NBR_CELL_ID FROM ',GT_DB,'.tmp_aco_nt_lte A 
 	INNER JOIN  ',CURRENT_NT_DB,'.nt_nbr_4_4_current_lte B 
@@ -162,9 +162,28 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
+	/*SET @SQLCMD=CONCAT ('UPDATE ',GT_DB,'.tmp_opt_aco_traffic_unbalance_lte A,
+	(
+	SELECT DATA_HOUR ,CELL_ID ,ENODEB_ID,MAX(MAX_CONCURRENT_CNT) MAX_CONCURRENT_CNT 
+	FROM ' ,O_GT_DB,'.opt_aco_traffic_lte
+	GROUP BY DATA_HOUR,CELL_ID,ENODEB_ID
+	)  B	
+	SET A.CALL_CONCURRENT=B.MAX_CONCURRENT_CNT
+	WHERE A.ENODEB_ID=B.ENODEB_ID AND A.CELL_ID=B.CELL_ID AND A.DATA_HOUR=B.DATA_HOUR;
+	');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	*/
 	
-	
-	
+	/*
+	SET @SQLCMD=CONCAT ('UPDATE ',GT_DB,'.tmp_opt_aco_traffic_unbalance A 
+	SET FACTOR=POW(TRAFFIC_VOLUME_DIST,0.2) * SQRT(CALL_CONCURRENT) * BLOCK_RATE * AVG_TRA_HIGH_THAN_NEB;
+	');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	*/
 	
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'Sp_Sub_Generate_ACO_Report','Step5', NOW());

@@ -6,7 +6,7 @@ BEGIN
        	DECLARE RNC_ID INT;
 	DECLARE O_GT_DB VARCHAR(100) DEFAULT GT_DB;
 	DECLARE START_TIME DATETIME DEFAULT SYSDATE();
-	DECLARE GT_DATE VARCHAR(18) default right(GT_DB,18);
+	DECLARE GT_DATE VARCHAR(18) DEFAULT RIGHT(GT_DB,18);
 	DECLARE PARTITION_ID INT DEFAULT SUBSTRING(RIGHT(GT_DB,18),10,2) ;
 	DECLARE STARTHOUR VARCHAR(2) DEFAULT SUBSTRING(RIGHT(GT_DB,18),10,2);
 	DECLARE ENDHOUR VARCHAR(2) DEFAULT IF(SUBSTRING(RIGHT(GT_DB,18),15,2)='00','24',SUBSTRING(RIGHT(GT_DB,18),15,2));
@@ -21,7 +21,7 @@ BEGIN
         SET SESSION read_buffer_size = 1024*1024*1024; 
         
  	SELECT gt_strtok(GT_DB,2,'_') INTO RNC_ID;
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO table_tile_erlang_fp_bs-START ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert data to table_tile_erlang_fp_bs-Start ', NOW());
 	
 	
 	CALL SP_Sub_Set_Session_Param(GT_DB);
@@ -37,10 +37,23 @@ BEGIN
 		SET RUN = '';
 	END IF;
 	
-	SET @SqlCmd=CONCAT('SELECT att_value INTO @ZOOM_LEVEL FROM ',GT_DB,RUN,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @SYS_CONFIG_TILE FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
+		
+	IF gt_covmo_csv_count(@SYS_CONFIG_TILE,',') =3 THEN
+		
+		SET @SqlCmd=CONCAT('SELECT gt_covmo_csv_get(att_value,3) INTO @ZOOM_LEVEL FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	ELSE 
+		SET @SqlCmd=CONCAT('SELECT att_value INTO @ZOOM_LEVEL FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	END IF;
 	
 	SET @SqlCmd=CONCAT('ALTER TABLE ',GT_DB,RUN,'.table_tile_erlang_fp_bs TRUNCATE PARTITION h',PARTITION_ID,';');
 	PREPARE Stmt FROM @SqlCmd;
@@ -72,7 +85,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','CREATE temp TABLE table_tile_erlang_fp_bs ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Create temp table table_tile_erlang_fp_bs ', NOW());
 	
 	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE  IF EXISTS ',GT_DB,RUN,'.tmp_table_tile_erlang_fp_bs_',WORKER_ID,';');
 	PREPARE stmt FROM @sqlcmd;
@@ -106,7 +119,7 @@ BEGIN
 	DEALLOCATE PREPARE Stmt; 
 	
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO tmp_table_tile_erlang_fp_bs', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert Data to tmp_table_tile_erlang_fp_bs', NOW());
 	
 	SET @SqlCmd=CONCAT('INSERT INTO   ',GT_DB,RUN,'.`tmp_table_tile_erlang_fp_bs_',WORKER_ID,'`
 				(`DATA_DATE`,
@@ -163,7 +176,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','UPDATE table_tile_erlang_fp_bs-FREQUENCY, SITE_ID, DL_UARFCN, CELL_LON, CELL_LAT ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Update table_tile_erlang_fp_bs-FREQUENCY, SITE_ID, DL_UARFCN, CELL_LON, CELL_LAT ', NOW());
 	
 	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,RUN,'.`tmp_table_tile_erlang_fp_bs_',WORKER_ID,'` A, ',CURRENT_NT_DB,'.nt_current B
 			    SET A.FREQUENCY=B.FREQUENCY
@@ -180,7 +193,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO table_tile_erlang_fp_bs', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert Data to table_tile_erlang_fp_bs', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.`table_tile_erlang_fp_bs`	
 					(DATA_DATE,DATA_HOUR,INDOOR,MOVING,TILE_ID,CELL_ID,RNC_ID,CALL_TYPE,CALL_STATUS,CNT,ERLANG
 					,FREQUENCY,UARFCN,SITE_ID,CELL_LON,CELL_LAT,CLUSTER_ID,CELL_INDOOR
@@ -197,7 +210,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO table_tile_erlang_fp_bs_t', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert Data to table_tile_erlang_fp_bs_t', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.`table_tile_erlang_fp_bs_t`
 				(DATA_DATE,DATA_HOUR,INDOOR,MOVING,TILE_ID,RNC_ID,CALL_TYPE,CALL_STATUS,CNT,ERLANG
 				,FREQUENCY,UARFCN
@@ -245,7 +258,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO table_tile_erlang_fp_bs_c', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert Data to table_tile_erlang_fp_bs_c', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.`table_tile_erlang_fp_bs_c`
 				(DATA_DATE,DATA_HOUR,INDOOR,MOVING,CELL_ID,RNC_ID,CALL_TYPE,CALL_STATUS,CNT,ERLANG
 				,FREQUENCY,UARFCN,SITE_ID,CELL_LON,CELL_LAT,CLUSTER_ID,CELL_INDOOR
@@ -293,20 +306,25 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO table_tile_erlang_fp_bs_def', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert Data to table_tile_erlang_fp_bs_def', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.`table_tile_erlang_fp_bs_def`
-				(DATA_DATE,DATA_HOUR,TILE_ID,CELL_ID,RNC_ID,CNT,ERLANG
+				(DATA_DATE,DATA_HOUR,FREQUENCY,UARFCN,TILE_ID,CELL_ID,RNC_ID,CELL_INDOOR,CLUSTER_ID,SITE_ID,CNT,ERLANG
 -- 				,CALL_STATUS_BLOCK,CALL_STATUS_SUCCESS,CALL_STATUS_DROP,CALL_TYPE_SMS,CALL_TYPE_VOICE,CALL_TYPE_VEDIO
 -- 				,CALL_TYPE_PS99,CALL_TYPE_HSPA,CALL_TYPE_MRAB,CALL_TYPE_PSOTHERS,CALL_TYPE_CS,CALL_TYPE_PS
 	)
 				SELECT  
 				DATA_DATE
 				, DATA_HOUR
+				, FREQUENCY
+				, UARFCN
 				#, INDOOR
 				#, MOVING
 				, TILE_ID
 				, CELL_ID
 				, RNC_ID
+				, CELL_INDOOR
+				, CLUSTER_ID
+				, SITE_ID
 				#, CALL_TYPE
 				#, CALL_STATUS
 				, SUM(CNT) AS CNT
@@ -339,7 +357,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO table_tile_erlang_fp_bs_t_def', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert Data to table_tile_erlang_fp_bs_t_def', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.`table_tile_erlang_fp_bs_t_def`
 				(DATA_DATE,DATA_HOUR,TILE_ID,RNC_ID,CNT,ERLANG
 -- 				,CALL_STATUS_BLOCK,CALL_STATUS_SUCCESS,CALL_STATUS_DROP,CALL_TYPE_SMS,CALL_TYPE_VOICE,CALL_TYPE_VEDIO
@@ -385,20 +403,25 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO table_tile_erlang_fp_bs_c_def', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert Data to table_tile_erlang_fp_bs_c_def', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.`table_tile_erlang_fp_bs_c_def`
-				(DATA_DATE,DATA_HOUR,CELL_ID,RNC_ID,CNT,ERLANG
+				(DATA_DATE,DATA_HOUR,FREQUENCY,UARFCN,CELL_ID,RNC_ID,CELL_INDOOR,CLUSTER_ID,SITE_ID,CNT,ERLANG
 -- 				,CALL_STATUS_BLOCK,CALL_STATUS_SUCCESS,CALL_STATUS_DROP,CALL_TYPE_SMS,CALL_TYPE_VOICE,CALL_TYPE_VEDIO
 -- 				,CALL_TYPE_PS99,CALL_TYPE_HSPA,CALL_TYPE_MRAB,CALL_TYPE_PSOTHERS,CALL_TYPE_CS,CALL_TYPE_PS
 	)
 				SELECT  
 				DATA_DATE
 				, DATA_HOUR
+				, FREQUENCY
+				, UARFCN
 				#, INDOOR
 				#, MOVING
 				#, TILE_ID
 				, CELL_ID
 				, RNC_ID
+				, CELL_INDOOR
+				, CLUSTER_ID
+				, SITE_ID
 				#, CALL_TYPE
 				#, CALL_STATUS
 				, SUM(CNT) AS CNT
@@ -431,7 +454,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO table_tile_erlang_fp_bs_dy', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert Data to table_tile_erlang_fp_bs_dy', NOW());
 	SET @SqlCmd=CONCAT('REPLACE INTO ',GT_DB,'.table_tile_erlang_fp_bs_dy
  		(DATA_DATE,INDOOR,MOVING,TILE_ID,CELL_ID,RNC_ID,CALL_TYPE,CALL_STATUS,CNT,ERLANG
 		,FREQUENCY,UARFCN,SITE_ID,CELL_LON,CELL_LAT,CLUSTER_ID,CELL_INDOOR
@@ -507,6 +530,7 @@ BEGIN
 				, RNC_ID
 				, CALL_TYPE
 				, CALL_STATUS
+			ORDER BY NULL
 		) B
 		ON  A.DATA_DATE=B.DATA_DATE
 		AND A.INDOOR=B.INDOOR
@@ -521,7 +545,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO table_tile_erlang_fp_bs_dy_t', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert Data to table_tile_erlang_fp_bs_dy_t', NOW());
 	SET @SqlCmd=CONCAT('REPLACE INTO ',GT_DB,'.table_tile_erlang_fp_bs_dy_t
  		(DATA_DATE,INDOOR,MOVING,TILE_ID,RNC_ID,CALL_TYPE,CALL_STATUS,CNT,ERLANG
 		,FREQUENCY,UARFCN
@@ -595,6 +619,7 @@ BEGIN
 				, RNC_ID
 				, CALL_TYPE
 				, CALL_STATUS
+			ORDER BY NULL
 		) B
 		ON  A.DATA_DATE=B.DATA_DATE
 		AND A.INDOOR=B.INDOOR
@@ -609,7 +634,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO table_tile_erlang_fp_bs_dy_c', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert Data to table_tile_erlang_fp_bs_dy_c', NOW());
 	SET @SqlCmd=CONCAT('REPLACE INTO ',GT_DB,'.table_tile_erlang_fp_bs_dy_c
  		(DATA_DATE,INDOOR,MOVING,CELL_ID,RNC_ID,CALL_TYPE,CALL_STATUS,CNT,ERLANG
 		,FREQUENCY,UARFCN,SITE_ID,CELL_LON,CELL_LAT,CLUSTER_ID,CELL_INDOOR
@@ -685,6 +710,7 @@ BEGIN
 				, RNC_ID
 				, CALL_TYPE
 				, CALL_STATUS
+			ORDER BY NULL
 		) B
 		ON  A.DATA_DATE=B.DATA_DATE
 		AND A.INDOOR=B.INDOOR
@@ -699,7 +725,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO table_tile_erlang_fp_bs_dy_def', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert Data to table_tile_erlang_fp_bs_dy_def', NOW());
 	SET @SqlCmd=CONCAT('REPLACE INTO ',GT_DB,'.table_tile_erlang_fp_bs_dy_def
  		(DATA_DATE,TILE_ID,CELL_ID,RNC_ID,CNT,ERLANG
 		,FREQUENCY,UARFCN,SITE_ID,CELL_LON,CELL_LAT,CLUSTER_ID,CELL_INDOOR
@@ -775,6 +801,7 @@ BEGIN
 				, RNC_ID
 				#, CALL_TYPE
 				#, CALL_STATUS
+			ORDER BY NULL
 		) B
 		ON  A.DATA_DATE=B.DATA_DATE
 		#AND A.INDOOR=B.INDOOR
@@ -789,7 +816,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO table_tile_erlang_fp_bs_dy_t_def', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert Data to table_tile_erlang_fp_bs_dy_t_def', NOW());
 	SET @SqlCmd=CONCAT('REPLACE INTO ',GT_DB,'.table_tile_erlang_fp_bs_dy_t_def
  		(DATA_DATE,TILE_ID,RNC_ID,CNT,ERLANG
 		,FREQUENCY,UARFCN
@@ -860,6 +887,7 @@ BEGIN
 				, RNC_ID
 				#, CALL_TYPE
 				#, CALL_STATUS
+			ORDER BY NULL
 		) B
 		ON  A.DATA_DATE=B.DATA_DATE
 		#AND A.INDOOR=B.INDOOR
@@ -874,7 +902,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','INSERT DATA TO table_tile_erlang_fp_bs_dy_c_def', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Erlang_FP_BS','Insert Data to table_tile_erlang_fp_bs_dy_c_def', NOW());
 	SET @SqlCmd=CONCAT('REPLACE INTO ',GT_DB,'.table_tile_erlang_fp_bs_dy_c_def
  		(DATA_DATE,CELL_ID,RNC_ID,CNT,ERLANG
 		,FREQUENCY,UARFCN,SITE_ID,CELL_LON,CELL_LAT,CLUSTER_ID,CELL_INDOOR
@@ -950,6 +978,7 @@ BEGIN
 				, RNC_ID
 				#, CALL_TYPE
 				#, CALL_STATUS
+			ORDER BY NULL
 		) B
 		ON  A.DATA_DATE=B.DATA_DATE
 		#AND A.INDOOR=B.INDOOR

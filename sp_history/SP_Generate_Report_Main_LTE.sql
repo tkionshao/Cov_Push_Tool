@@ -81,8 +81,8 @@ BEGIN
 		
 		INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Generate_Report_Main_LTE','NBO NBR_TYPE', NOW());
 	
-
-
+-- 		SELECT VALUE INTO @nt2_flag FROM gt_gw_main.integration_param WHERE gt_group='sp' AND gt_name='nt2' ;
+-- 		IF @nt2_flag='true' THEN
 			
 		SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.opt_nbr_inter_intra_lte_',START_HOUR,' a 
 		LEFT JOIN ',CURRENT_NT_DB,'.nt2_cell_lte b ON a.enodeb_id = b.enodeb_id AND a.cell_id=b.cell_id 
@@ -93,24 +93,24 @@ BEGIN
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
 	
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+-- 		ELSE
+-- 		
+-- 			SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.opt_nbr_inter_intra_lte_',START_HOUR,' A, ',CURRENT_NT_DB,'.nt_cell_current_lte B,',CURRENT_NT_DB,'.nt_cell_current_lte C
+-- 			SET A.NBR_TYPE = CASE WHEN B.DL_EARFCN = C.DL_EARFCN THEN 20 ELSE 10 END 
+-- 			WHERE A.ENODEB_ID = B.ENODEB_ID AND A.CELL_ID = B.CELL_ID AND A.NBR_ENODEB_ID = C.ENODEB_ID AND A.NBR_CELL_ID = C.CELL_ID;');
+-- 			PREPARE Stmt FROM @SqlCmd;
+-- 			EXECUTE Stmt;
+-- 			DEALLOCATE PREPARE Stmt;
+-- 			
+-- 			SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.opt_nbr_inter_intra_lte_',START_HOUR,' A, ',CURRENT_NT_DB,'.nt_nbr_4_4_current_lte B 
+-- 			SET A.NBR_TYPE = B.NBR_TYPE
+-- 			WHERE A.ENODEB_ID = B.ENODEB_ID AND A.CELL_ID = B.CELL_ID AND A.NBR_ENODEB_ID = B.NBR_ENODEB_ID AND A.NBR_CELL_ID = B.NBR_CELL_ID;
+-- 			');
+-- 			PREPARE Stmt FROM @SqlCmd;
+-- 			EXECUTE Stmt;
+-- 			DEALLOCATE PREPARE Stmt;
+-- 	
+-- 		END IF;
 	
 	END IF;
 	

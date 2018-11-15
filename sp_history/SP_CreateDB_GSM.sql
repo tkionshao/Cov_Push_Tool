@@ -24,25 +24,15 @@ BEGIN
 	
 		SELECT CONCAT(GSM_SCHEMA,'/',GSM_RPT,'/',SP_VERSION) INTO @SP_VERSION FROM gt_gw_main.sp_version LIMIT 1;
 		SELECT IFNULL(MAX(SESSION_ID),0)+1  INTO GT_SESSION_ID FROM  gt_gw_main.session_information;
-	
+		
 		SET @SqlCmd = CONCAT('SELECT GW_URI,AP_URI,DS_AP_URI,IFNULL(RNC_VERSION,'''') INTO @RNC_TO_SEC_GW_URI,@RNC_TO_SEC_AP_URI,@RNC_TO_SEC_DS_AP_URI,@RNC_VERSION FROM gt_gw_main.rnc_information WHERE rnc=',RNC,' and technology = ''GSM'' ;');
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
-	
+		
 		SET @SqlCmd =CONCAT('INSERT INTO gt_gw_main.session_information (SESSION_ID, SESSION_DB ,RNC,FILE_STARTTIME,FILE_ENDTIME,STATUS,IMPORT_TIME,SESSION_START,SESSION_END,SESSION_TYPE,TECHNOLOGY,SP_VERSION,GW_URI,AP_URI,DS_AP_URI,RNC_VERSION ) values 
-		(',GT_SESSION_ID,',''',GT_DB,''',''',RNC,''',''',FILE_STARTTIME,''',''',FILE_ENDTIME,''',0, NOW(),''',FILE_STARTTIME,''',''',FILE_ENDTIME,'''
-		,''',IF(KIND='DAILY','DAY','TEMP'),''',''GSM'',''',@SP_VERSION,''',''',@RNC_TO_SEC_GW_URI,''',''',@RNC_TO_SEC_AP_URI,''',''',@RNC_TO_SEC_DS_AP_URI,''',''',@RNC_VERSION,''')');
-		PREPARE Stmt FROM @SqlCmd;
-		EXECUTE Stmt;
-		DEALLOCATE PREPARE Stmt;
-	
-		SET @SqlCmd =CONCAT('
-				UPDATE `gt_gw_main`.`session_information` A,  `gt_gw_main`.`rnc_information` B
-				SET 
-					A.RNC_VERSION = B.RNC_VERSION
-				WHERE A.`SESSION_DB` = ''',GT_DB,''' AND A.RNC = B.RNC;
-				');
+							(',GT_SESSION_ID,',''',GT_DB,''',''',RNC,''',''',FILE_STARTTIME,''',''',FILE_ENDTIME,''',0, NOW(),''',FILE_STARTTIME,''',''',FILE_ENDTIME,'''
+							,''',IF(KIND='DAILY','DAY','TEMP'),''',''GSM'',''',@SP_VERSION,''',''',@RNC_TO_SEC_GW_URI,''',''',@RNC_TO_SEC_AP_URI,''',''',@RNC_TO_SEC_DS_AP_URI,''',''',@RNC_VERSION,''')');
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
@@ -52,14 +42,13 @@ BEGIN
 			CALL gt_gw_main.SP_CreateDB_Schema_Sub(GT_DB,'gsm');
 			CALL gt_gw_main.SP_Create_Merge_Rename_Table_GSM(GT_DB,'DY',0,0);
 			IF CUSTOMER_USER_FLAG = 'true' THEN
-				CALL gt_gw_main.SP_Grant(GT_DB);
+				CALL gt_gw_main.SP_Grant(GT_DB,1);
 			END IF;
 		ELSEIF KIND = 'HOURLY' THEN
 			CALL gt_gw_main.SP_CreateDB_Schema_GSM(GT_DB,FILEDATE);
-			CALL gt_gw_main.SP_Check_SysConfig('STEP1',FILEDATE,GT_DB,'');
 		END IF;
+		
 		IF DAILY_JUDGE=TRUE THEN
-	
 			SET @SqlCmd =CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.session_information;');
 			PREPARE Stmt FROM @SqlCmd;
 			EXECUTE Stmt;
@@ -72,7 +61,6 @@ BEGIN
 			EXECUTE Stmt;
 			DEALLOCATE PREPARE Stmt;
 		END IF;
-		
 	ELSEIF KIND = 'RERUN' THEN
 		INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_CreateDB_GSM','Create DB-2', NOW());
 		CALL gt_gw_main.SP_Copy_Database(GT_DB,CONCAT(GT_DB,'_rerun'));
@@ -80,24 +68,25 @@ BEGIN
  		INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_CreateDB_GSM','Create DB-3', NOW());
 		CALL gt_gw_main.SP_Copy_Database(GT_DB,CONCAT(GT_DB,'_tmp'));
 	ELSEIF KIND = 'NT' THEN
-		INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_CreateDB_GSM','Create DB-4', NOW());
+		INSERT INTO gt_gw_main.sp_log VALUES(NT_DB_NAME,'SP_CreateDB_GSM','Create DB-4', NOW());
 		SET @SqlCmd =CONCAT('CREATE DATABASE IF NOT EXISTS ', NT_DB_NAME);
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
-		CALL gt_gw_main.SP_CreateDB_NT_Schema_GSM(NT_DB_NAME);
-		CALL gt_gw_main.SP_CreateDB_NT2_Schema_GSM(NT_DB_NAME);
+		
+		CALL gt_gw_main.SP_CreateDB_NT_Schema_GSM(NT_DB_NAME);	
+		CALL gt_gw_main.SP_CreateDB_NT2_Schema_GSM(NT_DB_NAME);	
 	ELSEIF KIND = 'AP' THEN
 		INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_CreateDB_GSM','Create DB-5', NOW());
 		SET @SqlCmd =CONCAT('SELECT COUNT(*) INTO @DB_CNT FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ''gt_',RNC,'_',FILEDATE,''';');
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;	
+		
 		IF @DB_CNT = 0 THEN
 			CALL gt_gw_main.SP_CreateDB_Schema_GSM(GT_DB,FILEDATE);
 		END IF;
 	END IF;
-	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_CreateDB_GSM','Create DB-End', NOW());
 END$$
 DELIMITER ;

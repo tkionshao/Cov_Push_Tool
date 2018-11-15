@@ -11,7 +11,7 @@ BEGIN
 	
 	
 	
-	SET @SqlCmd=CONCAT('SELECT att_value INTO @THRESHOLD_RATIO FROM ',GT_DB,'.sys_config WHERE att_name=''threshold_ratio'' AND group_name=''cf'';');
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @THRESHOLD_RATIO FROM ',CURRENT_NT_DB,'.sys_config WHERE att_name=''threshold_ratio'' AND group_name=''cf'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;	

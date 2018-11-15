@@ -10,31 +10,38 @@ BEGIN
 	DECLARE START_HH VARCHAR(2) DEFAULT LEFT(gt_strtok(GT_DB,4,'_'),2);
 	DECLARE START_MM VARCHAR(2) DEFAULT RIGHT(gt_strtok(GT_DB,4,'_'),2);
 	DECLARE WORKER_ID VARCHAR(10) DEFAULT CONNECTION_ID();
-		
-	DECLARE pilot_rscp SMALLINT;
-	DECLARE pilot_ecn0 SMALLINT;
-	DECLARE pilot_rscp_delta SMALLINT;
-	DECLARE pilot_pollution_trigger SMALLINT;
-	DECLARE interfere_rscp SMALLINT;
-	DECLARE interfere_ecn0 SMALLINT;
-		
+	
+	DECLARE CURRENT_NT_DB VARCHAR(50) DEFAULT CONCAT('gt_nt_',gt_strtok(GT_DB,3,'_'));
         SET SESSION max_heap_table_size = 1024*1024*1024*4; 
         SET SESSION tmp_table_size = 1024*1024*1024*6; 
         SET SESSION join_buffer_size = 1024*1024*1024*1; 
         SET SESSION sort_buffer_size = 1024*1024*1024*1; 
         SET SESSION read_buffer_size = 1024*1024*1024*1; 
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @pilot_rscp FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''pilot'' AND att_name = ''pilot_rscp'';');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @pilot_ecn0 FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''pilot'' AND att_name = ''pilot_ecn0'';');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
 	
-        SELECT att_value INTO pilot_rscp FROM gt_covmo.`sys_config` WHERE `group_name`='pilot' AND att_name = 'pilot_rscp';
-	SELECT att_value INTO pilot_ecn0 FROM gt_covmo.`sys_config` WHERE `group_name`='pilot' AND att_name ='pilot_ecn0';
-	SELECT att_value INTO pilot_rscp_delta FROM gt_covmo.`sys_config` WHERE `group_name`='pilot' AND att_name ='pilot_rscp_delta';
-	SELECT att_value INTO pilot_pollution_trigger FROM gt_covmo.`sys_config` WHERE `group_name`='pilot' AND att_name ='pilot_pollution_trigger';
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @pilot_rscp_delta FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''pilot'' AND att_name = ''pilot_rscp_delta'';');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @pilot_pollution_trigger FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''pilot'' AND att_name = ''pilot_pollution_trigger'';');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
 	
         SELECT CONCAT(LEFT(gt_strtok(GT_DB,3,'_'),4),'-',SUBSTRING(gt_strtok(GT_DB,3,'_'),5,2),'-',SUBSTRING(gt_strtok(GT_DB,3,'_'),7,2),' ',LEFT(gt_strtok(GT_DB,4,'_'),2),':',RIGHT(gt_strtok(GT_DB,4,'_'),2),':00') INTO GT_START_TIME;
  	SELECT SUBSTRING(SUBSTRING(GT_DB, 4,LENGTH(GT_DB)-4),1, LOCATE('_', SUBSTRING(GT_DB, 4,LENGTH(GT_DB)-4))-1) INTO RNC_ID;
  
 	
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Generate_CSV','INSERT DATA TO table_tile_fp_15-START ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Generate_CSV','Insert data to table_tile_fp_15-Start ', NOW());
 	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS  ',GT_DB,'.tmp_table_call','_',WORKER_ID,' ;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
@@ -47,8 +54,8 @@ BEGIN
 				,CALL_TYPE
 				,CALL_STATUS
 				,IMSI
-				,POS_IFHO_RNC
-				,POS_IFHO_CELL
+				,NULL AS POS_IFHO_RNC
+				,NULL AS POS_IFHO_CELL
 				,POS_FIRST_RSCP
 				,POS_FIRST_ECN0
 				,DL_TRAFFIC_VOLUME
@@ -90,7 +97,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	SET @SqlCmd=CONCAT('CREATE INDEX CALL_ID ON ',GT_DB,'.`tmp_table_call','_',WORKER_ID,'` (CALL_ID)   ;');
+	SET @SqlCmd=CONCAT('CREATE INDEX CALL_ID on ',GT_DB,'.`tmp_table_call','_',WORKER_ID,'` (CALL_ID)   ;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
@@ -105,7 +112,7 @@ BEGIN
 	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.`tmp_table_first','_',WORKER_ID,'` ENGINE=MYISAM
 				SELECT POS_FIRST_RNC RNC_ID 
 				,POS_FIRST_CELL CELL_ID 
-				,CASE WHEN CALL_TYPE IN (10) THEN ''Voice'' WHEN CALL_TYPE IN (12,13,14,18) THEN ''DATA'' WHEN CALL_TYPE =16 THEN ''SMS'' END AS SERVICETYPE
+				,CASE WHEN CALL_TYPE IN (10) THEN ''Voice'' WHEN CALL_TYPE IN (12,13,14,18) THEN ''Data'' WHEN CALL_TYPE =16 THEN ''SMS'' END AS SERVICETYPE
 				,COUNT(DISTINCT IMSI) AS subscriber
 				,COUNT(POS_FIRST_CELL) AS init_call_count
 				,AVG(POS_FIRST_RSCP) AS init_rscp
@@ -138,7 +145,7 @@ BEGIN
 				SELECT 
 				POS_IFHO_RNC RNC_ID 
 				,POS_IFHO_CELL CELL_ID 
-				,CASE WHEN CALL_TYPE IN (10) THEN ''Voice'' WHEN CALL_TYPE IN (12,13,14,18) THEN ''DATA'' WHEN CALL_TYPE =16 THEN ''SMS'' END AS SERVICETYPE
+				,CASE WHEN CALL_TYPE IN (10) THEN ''Voice'' WHEN CALL_TYPE IN (12,13,14,18) THEN ''Data'' WHEN CALL_TYPE =16 THEN ''SMS'' END AS SERVICETYPE
 				,COUNT(POS_IFHO_CELL) AS IFHO_COUNT
 				FROM ',GT_DB,'.`tmp_table_call','_',WORKER_ID,'`
 				WHERE POS_IFHO_RNC =',RNC_ID,' AND DATA_HOUR=',START_HH,'
@@ -157,7 +164,7 @@ BEGIN
 	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.`tmp_table_as1','_',WORKER_ID,'` ENGINE=MYISAM
 				SELECT POS_AS1_RNC RNC_ID
 					,POS_AS1_CELL CELL_ID
-					,CASE WHEN CALL_TYPE IN (10) THEN ''Voice'' WHEN CALL_TYPE IN (12,13,14,18) THEN ''DATA'' WHEN CALL_TYPE =16 THEN ''SMS'' END AS SERVICETYPE
+					,CASE WHEN CALL_TYPE IN (10) THEN ''Voice'' WHEN CALL_TYPE IN (12,13,14,18) THEN ''Data'' WHEN CALL_TYPE =16 THEN ''SMS'' END AS SERVICETYPE
 					,COUNT(POS_AS1_RSCP) AS act_call_count
 					,AVG(POS_AS1_RSCP) AS init_serv_rscp
 					,AVG(POS_AS1_ECN0) AS init_serv_ecn0
@@ -178,7 +185,7 @@ BEGIN
 	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.`tmp_table_last','_',WORKER_ID,'` ENGINE=MYISAM
 				SELECT POS_LAST_RNC AS RNC_ID 
 					,POS_LAST_CELL AS CELL_ID 
-					,CASE WHEN CALL_TYPE IN (10) THEN ''Voice'' WHEN CALL_TYPE IN (12,13,14,18) THEN ''DATA'' WHEN CALL_TYPE =16 THEN ''SMS'' END AS SERVICETYPE
+					,CASE WHEN CALL_TYPE IN (10) THEN ''Voice'' WHEN CALL_TYPE IN (12,13,14,18) THEN ''Data'' WHEN CALL_TYPE =16 THEN ''SMS'' END AS SERVICETYPE
 					,COUNT(POS_LAST_CELL) AS end_call_count
 					,AVG(POS_LAST_RSCP) AS end_pilot_rscp
 					,AVG(POS_LAST_ECN0) AS end_pilot_ecn0
@@ -201,13 +208,13 @@ BEGIN
 	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.`tmp_table_fp','_',WORKER_ID,'` ENGINE=MYISAM
 				SELECT  gt_covmo_csv_get(RNC_ID,1) RNC_ID
 					, gt_covmo_csv_get(CELL_ID,1) CELL_ID
-					,CASE WHEN A.CALL_TYPE IN (10) THEN ''Voice'' WHEN A.CALL_TYPE IN (12,13,14,18) THEN ''DATA'' WHEN A.CALL_TYPE =16 THEN ''SMS'' END AS SERVICETYPE
+					,CASE WHEN A.CALL_TYPE IN (10) THEN ''Voice'' WHEN A.CALL_TYPE IN (12,13,14,18) THEN ''Data'' WHEN A.CALL_TYPE =16 THEN ''SMS'' END AS SERVICETYPE
 					, COUNT(*) AS mr_count
 					, AVG(gt_covmo_csv_get(RSCP,1)) AS fp_pilot_rscp
 					, AVG(gt_covmo_csv_get(ECN0,1)) AS fp_pilot_ecn0
 					, AVG(gt_covmo_csv_count(ACTIVE_SET_CELL_ID, '','')) AS as_count
-					, SUM(IF(gt_covmo_polluter(RSCP, ECN0,',pilot_rscp,',',pilot_ecn0,',',pilot_rscp_delta,')>',pilot_pollution_trigger,',gt_covmo_polluter(RSCP, ECN0,',pilot_rscp,',',pilot_ecn0,',',pilot_rscp_delta,')-',pilot_pollution_trigger,',0)) AS POLLUTER
-					, SUM(IF(gt_covmo_polluter(RSCP, ECN0,',pilot_rscp,',',pilot_ecn0,',',pilot_rscp_delta,')>',pilot_pollution_trigger,',1,0)) AS polluted_mr	
+					, SUM(IF(gt_covmo_polluter(RSCP, ECN0,',@pilot_rscp,',',@pilot_ecn0,',',@pilot_rscp_delta,')>',@pilot_pollution_trigger,',gt_covmo_polluter(RSCP, ECN0,',@pilot_rscp,',',@pilot_ecn0,',',@pilot_rscp_delta,')-',@pilot_pollution_trigger,',0)) AS POLLUTER
+					, SUM(IF(gt_covmo_polluter(RSCP, ECN0,',@pilot_rscp,',',@pilot_ecn0,',',@pilot_rscp_delta,')>',@pilot_pollution_trigger,',1,0)) AS polluted_mr	
 				FROM ',GT_DB,'.`tmp_table_call','_',WORKER_ID,'` A  FORCE INDEX (CALL_ID), ',GT_DB,'.table_position B FORCE INDEX (CALL_ID)
 				WHERE A.CALL_ID=B.CALL_ID
 				AND gt_covmo_csv_getnum(B.RNC_ID,1)=',RNC_ID,'

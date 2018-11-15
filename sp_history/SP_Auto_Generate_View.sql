@@ -38,12 +38,12 @@ BEGIN
 								(DATA_DATE,DATA_HOUR,PU_ID,SERVICETYPE,TOT_CALL_CNT,TECH_MASK,NOTE)
 							SELECT B.*
 							FROM gt_gw_main.',CONCAT('`table_call_cnt_',S_IP,'_',S_PORT),'` B 
-							WHERE B.PU_ID=',gt_strtok(GT_DB,2,'_'),';');
+							WHERE B.PU_ID=',gt_strtok(GT_DB,2,'_'),' 
+							AND DATA_DATE<>''0000-00-00'';');
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt; 
 	END IF;
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Auto_Generate_View',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
-	
 END$$
 DELIMITER ;

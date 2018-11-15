@@ -5,13 +5,11 @@ CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Create_Merge_Rename_24Q_and_HR`(IN GT_D
 BEGIN
 	DECLARE START_TIME DATETIME DEFAULT SYSDATE();
 	DECLARE UNION_STR TEXT ;
-	DECLARE UNION_HR_STR TEXT ;
-	
+	DECLARE UNION_HR_STR TEXT ;	
 	DECLARE MAX_HR SMALLINT(6);
 	DECLARE MAX_QR SMALLINT(6);
 	DECLARE STR_HR SMALLINT(6);
-	DECLARE STR_QR SMALLINT(6);
-	
+	DECLARE STR_QR SMALLINT(6);	
 	DECLARE qry_tbl_name VARCHAR(50);
 	DECLARE qry_tbl_name_hr VARCHAR(50);
 	DECLARE v_i SMALLINT(6);
@@ -26,6 +24,7 @@ BEGIN
 	SET qry_tbl_name='';
 	SET v_k=STR_HR;
 	SET v_k_Diff=1;
+	
 	WHILE v_k < MAX_HR DO
 	BEGIN
 		SET v_i=STR_QR;
@@ -41,7 +40,6 @@ BEGIN
 			PREPARE Stmt FROM @SqlCmd;
 			EXECUTE Stmt;
 			DEALLOCATE PREPARE Stmt;
-	
 		
 			IF UNION_STR IS NULL THEN
 				SET UNION_STR = CONCAT(GT_DB,'.',qry_tbl_name,'');
@@ -57,20 +55,23 @@ BEGIN
 		END;
 		END WHILE;
 		SET qry_tbl_name_hr=CONCAT(TBL_NAME,'_',RIGHT(CONCAT('0',v_k),2));
+		
 		SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.',qry_tbl_name_hr,';');
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
+		
 		SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.',qry_tbl_name_hr,' LIKE ',GT_DB,'.',TBL_NAME,';');
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
+		
 		SET @SqlCmd=CONCAT('ALTER TABLE ',GT_DB,'.',qry_tbl_name_hr,' ENGINE = MRG_MYISAM UNION=(',UNION_HR_STR,');');
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
-		SET UNION_HR_STR = NULL;
-	
+		
+		SET UNION_HR_STR = NULL;	
 		SET v_i=STR_QR;
 		SET v_k=v_k+v_k_Diff;
 	END;

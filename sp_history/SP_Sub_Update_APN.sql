@@ -5,152 +5,67 @@ CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Sub_Update_APN`(IN GT_DB VARCHAR(100),I
 BEGIN
 	DECLARE GT_SESSION_ID INT;
 	DECLARE WORKER_ID VARCHAR(10) DEFAULT CONNECTION_ID();
+	DECLARE SH_EH VARCHAR(9) DEFAULT RIGHT(GT_DB,9);
+	DECLARE SH VARCHAR(4) DEFAULT gt_strtok(SH_EH,1,'_');
+	DECLARE FROM_GT_DB VARCHAR(100) DEFAULT GT_DB;
+	DECLARE START_TIME DATETIME DEFAULT SYSDATE();
+	
+	SELECT REPLACE(GT_DB,SH_EH,'0000_0000') INTO GT_DB;
 	
 	SET @SqlCmd=CONCAT('SELECT APN_ID INTO @NULL_ID FROM ',GT_COVMO,'.dim_apn WHERE `APN`=''Other'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	
-	
-	
  	SELECT SESSION_ID INTO GT_Session_ID FROM gt_gw_main.session_information WHERE SESSION_DB=GT_DB;
-	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_APN',CONCAT('INSERT DATA TO tmp_dim_imsi_apn','_',WORKER_ID), NOW());
-	
-	
-	
-	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS ',GT_DB,'.tmp_dim_apn','_',WORKER_ID,';');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-		
-	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.`tmp_dim_apn','_',WORKER_ID,'` ENGINE=MYISAM
-				SELECT * FROM ',GT_COVMO,'.dim_apn;');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	
-	SET @SqlCmd=CONCAT('CREATE INDEX IX_APN ON ',GT_DB,'.`tmp_dim_apn','_',WORKER_ID,'` (APN);');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	
-	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS ',GT_DB,'.tmp_dim_imsi_apn','_',WORKER_ID,';');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_dim_imsi_apn','_',WORKER_ID,'
-				SELECT
-				  `SESSION_ID`,
-				  `DATA_TIME`,
-				  `IMSI`,
-				  `APN_ID`,
-				  `APN`
-				FROM `gt_gw_main`.`dim_imsi_apn`;');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	
-	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,'.tmp_dim_imsi_apn','_',WORKER_ID,'
-				 (`SESSION_ID`,`DATA_TIME`,`IMSI`,`APN_ID`,`APN`)
-			SELECT DISTINCT ', GT_Session_ID,', A.START_TIME,A.IMSI
-				,CASE WHEN B.APN IS NULL THEN ',@NULL_ID,' ELSE B.APN_ID END AS APN
-				,CASE WHEN B.APN IS NULL THEN ''Other'' ELSE A.ACCESS_POINT_NAME END AS ACCESS_POINT_NAME
-			FROM  ',GT_DB,'.table_call A
-			LEFT JOIN  ',GT_DB,'.tmp_dim_apn','_',WORKER_ID,' B
-			ON A.ACCESS_POINT_NAME=B.APN
-			WHERE A.CALL_TYPE IN (12,13,14,18) AND A.IMSI IS NOT NULL AND TRIM(A.IMSI) <> '''' 
-			AND A.ACCESS_POINT_NAME IS NOT NULL AND TRIM(A.ACCESS_POINT_NAME) <> '''';');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	
-	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS  ',GT_DB,'.tmp_imsi_apn','_',WORKER_ID,' ;');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_imsi_apn','_',WORKER_ID,'
-				SELECT SESSION_ID,DATA_TIME,IMSI,APN_ID,APN
-				FROM 
-				(
-					SELECT SESSION_ID,DATA_TIME,IMSI,APN_ID,APN,
-						@num := IF(@IMSI=IMSI , @num + 1, 1) AS `RANK`,
-						@IMSI := IMSI AS dummy
-					FROM ',GT_DB,'.tmp_dim_imsi_apn','_',WORKER_ID,' t
-					,(SELECT @num := 0) r,(SELECT @IMSI:='''') s
-					WHERE LEFT(APN,3) <> ''mms''
-					ORDER BY IMSI,DATA_TIME DESC,SESSION_ID DESC
-				) AA
-				WHERE `RANK`=1;');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	SET @SqlCmd=CONCAT('CREATE INDEX IX_IMSI ON ',GT_DB,'.tmp_imsi_apn','_',WORKER_ID,' (`IMSI`,`APN_ID`,SESSION_ID,DATA_TIME);');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.`table_call` A FORCE INDEX(APN)
-					,  ',GT_DB,'.`tmp_dim_apn','_',WORKER_ID,'` B FORCE INDEX(IX_APN)
+	INSERT INTO gt_gw_main.sp_log VALUES(FROM_GT_DB,'SP_Sub_Update_APN','Step1', NOW());
+	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.`table_call_',SH,'` A FORCE INDEX(APN)
+					,  ',GT_COVMO,'.dim_apn B
 				SET A.APN = B.APN_ID 
 				WHERE A.ACCESS_POINT_NAME = B.APN;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
+	INSERT INTO gt_gw_main.sp_log VALUES(FROM_GT_DB,'SP_Sub_Update_APN','Step2', NOW());
+	SET @SqlCmd=CONCAT('INSERT INTO `gt_gw_main`.`dim_imsi_apn`
+				    (`SESSION_ID`,`DATA_TIME`,`IMSI`,`APN_ID`,`APN`)
+				SELECT
+					', GT_Session_ID,'
+					,B.START_TIME
+					,B.IMSI
+					,B.APN
+					,B.ACCESS_POINT_NAME
+					FROM ',GT_DB,'.`table_call_',SH,'` B
+				WHERE 
+					B.CALL_TYPE IN (12,13,14,18) 
+					AND B.IMSI IS NOT NULL 
+					AND TRIM(B.IMSI) <> '''' 
+					AND B.APN IS NOT NULL
+					AND B.ACCESS_POINT_NAME IS NOT NULL 
+					AND TRIM(B.ACCESS_POINT_NAME) <> '''' 
+					AND LEFT(B.ACCESS_POINT_NAME,3) <> ''mms''
+				ON DUPLICATE KEY UPDATE 
+					dim_imsi_apn.APN_ID=B.APN
+					,dim_imsi_apn.APN=B.ACCESS_POINT_NAME;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	INSERT INTO gt_gw_main.sp_log VALUES(FROM_GT_DB,'SP_Sub_Update_APN','Step3', NOW());	
+	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.`table_call_',SH,'` A FORCE INDEX(IMSI), `gt_gw_main`.`dim_imsi_apn` B
+				SET A.ACCESS_POINT_NAME = B.APN
+					,A.APN = B.APN_ID
+				WHERE A.IMSI=B.IMSI and A.ACCESS_POINT_NAME IS NULL AND A.CALL_TYPE IN (12,13,14,18);');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
 	
-	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.`table_call`
+	INSERT INTO gt_gw_main.sp_log VALUES(FROM_GT_DB,'SP_Sub_Update_APN','Step4', NOW());
+	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.`table_call_',SH,'`
 				SET APN = ',@NULL_ID,'
 				WHERE CALL_TYPE IN (12,13,14,18) AND ACCESS_POINT_NAME IS NOT NULL AND APN IS NULL;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	
-	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.`tmp_dim_apn','_',WORKER_ID,'` B FORCE INDEX(IX_APN)
-					,(SELECT APN FROM ',GT_DB,'.tmp_imsi_apn','_',WORKER_ID,' GROUP BY APN) A
-				SET B.USED = 1
-				WHERE B.APN = A.APN AND B.USED = 0;');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;	
-	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.table_call A FORCE INDEX(IMSI), ',GT_DB,'.tmp_imsi_apn','_',WORKER_ID,' B FORCE INDEX(IX_IMSI) 
-				SET A.ACCESS_POINT_NAME = B.APN
-					,A.APN = B.APN_ID
-				WHERE A.IMSI=B.IMSI AND A.ACCESS_POINT_NAME IS NULL AND A.CALL_TYPE IN (12,13,14,18);');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;	
-	SET @SqlCmd=CONCAT('UPDATE gt_gw_main.dim_imsi_apn A FORCE INDEX(IMSI), ',GT_DB,'.tmp_imsi_apn','_',WORKER_ID,' B FORCE INDEX(IX_IMSI) 
-				SET A.SESSION_ID=B.SESSION_ID,
-					A.DATA_TIME=B.DATA_TIME,
-					A.APN_ID=B.APN_ID,
-					A.APN=B.APN
-				WHERE A.IMSI=B.IMSI AND A.APN_ID<>B.APN_ID;');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;	
-	SET @SqlCmd=CONCAT('INSERT INTO gt_gw_main.dim_imsi_apn
-				SELECT B.SESSION_ID,B.DATA_TIME,B.IMSI,B.APN_ID,B.APN FROM  ',GT_DB,'.tmp_imsi_apn','_',WORKER_ID,' B
-				LEFT JOIN gt_gw_main.dim_imsi_apn A 
-				ON B.IMSI=A.IMSI
-				WHERE A.IMSI IS NULL;');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	SET @SqlCmd=CONCAT('UPDATE ',GT_COVMO,'.`dim_apn` B
- 					,(SELECT `APN_ID` FROM ',GT_DB,'.`tmp_dim_apn','_',WORKER_ID,'` WHERE USED = 1) A
-				SET B.USED = 1
-				WHERE B.`APN_ID` = A.`APN_ID` AND B.USED = 0;');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS  ',GT_DB,'.tmp_dim_imsi_apn','_',WORKER_ID,';');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	
-	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS  ',GT_DB,'.tmp_imsi_apn','_',WORKER_ID,';');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_APN','Done', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(FROM_GT_DB,'SP_Sub_Update_APN',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
 	
 END$$
 DELIMITER ;

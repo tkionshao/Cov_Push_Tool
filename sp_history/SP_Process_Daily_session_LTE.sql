@@ -33,7 +33,10 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	INSERT INTO gt_gw_main.sp_log VALUES(FROM_GT_DB,'SP_Process_Daily_session_LTE','Export CSV', NOW());
-	
+	/*IF HUA_EXPORT_FLAG = 'true' THEN
+		CALL gt_gw_main.`SP_Sub_Table_Call_Export`(FROM_GT_DB,4,GT_COVMO);		
+	END IF;
+	*/
 	INSERT INTO gt_gw_main.sp_log VALUES(FROM_GT_DB,'SP_Process_Daily_session_LTE','Roamer Call', NOW());
 	IF RERUN = 'rerun' THEN
 		SET @SqlCmd=CONCAT('TRUNCATE TABLE ',GT_DB,'.table_roamer_call_lte_',SH,';');
@@ -101,7 +104,7 @@ BEGIN
 	DEALLOCATE PREPARE Stmt;
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(FROM_GT_DB,'SP_Process_Daily_session_LTE','IMSI Diff', NOW());
-
+-- 	CALL gt_gw_main.SP_Generate_IMSI_PU(FROM_GT_DB,4);
 	
 	IF IMSI_IMEI_DIFF_FLAG = 'true' THEN 
 		CALL gt_gw_main.`SP_Generate_IMSI_IMEI`(FROM_GT_DB,4);

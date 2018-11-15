@@ -26,8 +26,7 @@ BEGIN
 	DEALLOCATE PREPARE Stmt;
 	
 	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_imsi_',PU_ID,'_',WORKER_ID,'
-				SELECT IMSI FROM ',GT_DB,'.table_call_imsi_',CASE TECH_MASK WHEN 1 THEN 'gsm' WHEN 2 THEN 'umts' WHEN 4 THEN 'lte' ELSE '' END,' 
-				GROUP BY IMSI;');
+				SELECT IMSI FROM ',GT_DB,'.table_imsi;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;

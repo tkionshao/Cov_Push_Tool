@@ -6,7 +6,7 @@ BEGIN
 	DECLARE CURRENT_NT_DB VARCHAR(50) DEFAULT CONCAT('gt_nt_',gt_strtok(GT_DB,3,'_'));
 	DECLARE RNC_ID VARCHAR(50) DEFAULT gt_strtok(GT_DB, 2, "_");
 	
-	set @check_1 = null;
+	SET @check_1 = NULL;
 	SET @check_2 = NULL;
 	
 	SET @SqlCmd=CONCAT('SELECT COUNT(*) into @check_1
@@ -28,7 +28,6 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt; 
-	select @check_1 * @check_2;
-	
+	SELECT @check_1 * @check_2;
 END$$
 DELIMITER ;

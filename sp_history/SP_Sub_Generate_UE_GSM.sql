@@ -30,10 +30,23 @@ BEGIN
 		SET RUN = '';
 	END IF;
 	
-	SET @SqlCmd=CONCAT('SELECT att_value INTO @ZOOM_LEVEL FROM ',GT_DB,RUN,'.sys_config WHERE group_name=''system'' AND att_name = ''MapResolution'';');
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @SYS_CONFIG_TILE FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
+		
+	IF gt_covmo_csv_count(@SYS_CONFIG_TILE,',') =3 THEN
+		
+		SET @SqlCmd=CONCAT('SELECT gt_covmo_csv_get(att_value,3) INTO @ZOOM_LEVEL FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	ELSE 
+		SET @SqlCmd=CONCAT('SELECT att_value INTO @ZOOM_LEVEL FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	END IF;
 	
 	SET @SqlCmd=CONCAT('ALTER TABLE ',GT_DB,RUN,'.table_tile_ue_gsm TRUNCATE PARTITION h',PARTITION_ID,';');
 	PREPARE Stmt FROM @SqlCmd;
@@ -59,7 +72,7 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','CREATE temp TABLE tmp_table_tile_ue_gsm ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','Create temp table tmp_table_tile_ue_gsm ', NOW());
 	
 	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE  IF EXISTS ',GT_DB,RUN,'.tmp_table_tile_ue_gsm_',WORKER_ID,';');
 	PREPARE stmt FROM @sqlcmd;
@@ -72,7 +85,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','INSERT INTO tmp_table_tile_ue_gsm ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','Insert into tmp_table_tile_ue_gsm ', NOW());
 	
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.tmp_table_tile_ue_gsm_',WORKER_ID,'
 				(
@@ -135,7 +148,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','UPDATE CELL_LON, CELL_LAT, CELL_NAME IN table_tile_ue_gsm ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','Update CELL_LON, CELL_LAT, CELL_NAME in table_tile_ue_gsm ', NOW());
 	SET @SqlCmd=CONCAT(' UPDATE ',GT_DB,RUN,'.tmp_table_tile_ue_gsm_',WORKER_ID,' A, 
 				    ',CURRENT_NT_DB,'.nt_cell_current_gsm B
 			     SET A.CELL_LON=B.LONGITUDE
@@ -149,7 +162,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 		
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','INSERT INTO table_tile_ue_gsm ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','Insert into table_tile_ue_gsm ', NOW());
 	
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.table_tile_ue_gsm
 				(
@@ -198,7 +211,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','INSERT INTO table_tile_ue_gsm_t ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','Insert into table_tile_ue_gsm_t ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.table_tile_ue_gsm_t
 				(
 				DATA_DATE,
@@ -233,7 +246,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','INSERT INTO table_tile_ue_gsm_c ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','Insert into table_tile_ue_gsm_c ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.table_tile_ue_gsm_c
 				(
 				DATA_DATE,
@@ -289,7 +302,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','INSERT INTO table_tile_ue_gsm_t_def ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','Insert into table_tile_ue_gsm_t_def ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.table_tile_ue_gsm_t_def
 				(
 				DATA_DATE,
@@ -312,7 +325,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','INSERT INTO table_tile_ue_gsm_c_def ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','Insert into table_tile_ue_gsm_c_def ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.table_tile_ue_gsm_c_def
 				(
 				DATA_DATE,
@@ -321,6 +334,7 @@ BEGIN
 				CELL_ID,
 				CELL_LON,
 				CELL_LAT,
+				CELL_NAME,
 				UE_CNT
 				)
 			    SELECT
@@ -330,6 +344,7 @@ BEGIN
 				,CELL_ID
 				,CELL_LON
 				,CELL_LAT
+				,CELL_NAME
 				,SUM(UE_CNT) AS UE_CNT
 			FROM ',GT_DB,RUN,'.tmp_table_tile_ue_gsm_',WORKER_ID,'
 			GROUP BY   
@@ -341,7 +356,7 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','INSERT INTO table_tile_ue_gsm_dy ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','Insert into table_tile_ue_gsm_dy ', NOW());
 	SET @SqlCmd=CONCAT('REPLACE INTO ',GT_DB,'.table_tile_ue_gsm_dy
 				(
 			DATA_DATE,
@@ -413,6 +428,7 @@ BEGIN
 				,CELL_ID
 				,CALL_TYPE
 				,CALL_STATUS
+			ORDER BY NULL
 		) B
 		ON  A.DATA_DATE=B.DATA_DATE
 		AND A.CALL_TYPE=B.CALL_TYPE
@@ -427,7 +443,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','INSERT INTO table_tile_ue_gsm_dy_t ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','Insert into table_tile_ue_gsm_dy_t ', NOW());
 	SET @SqlCmd=CONCAT('REPLACE INTO ',GT_DB,'.table_tile_ue_gsm_dy_t
 				(
 			DATA_DATE,
@@ -464,6 +480,7 @@ BEGIN
 				,TILE_ID
 				,CALL_TYPE
 				,CALL_STATUS
+			ORDER BY NULL
 		) B
 		ON  A.DATA_DATE=B.DATA_DATE
 		AND A.INDOOR=B.INDOOR
@@ -475,7 +492,7 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','INSERT INTO table_tile_ue_gsm_dy_c ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','Insert into table_tile_ue_gsm_dy_c ', NOW());
 	SET @SqlCmd=CONCAT('REPLACE INTO ',GT_DB,'.table_tile_ue_gsm_dy_c
 		(
 			DATA_DATE,
@@ -543,6 +560,7 @@ BEGIN
 				,CELL_ID
 				,CALL_TYPE
 				,CALL_STATUS
+			ORDER BY NULL
 		) B
 		ON  A.DATA_DATE=B.DATA_DATE
 		AND A.INDOOR=B.INDOOR
@@ -556,7 +574,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','INSERT INTO table_tile_ue_gsm_dy_t_def ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','Insert into table_tile_ue_gsm_dy_t_def ', NOW());
 	SET @SqlCmd=CONCAT('REPLACE INTO ',GT_DB,'.table_tile_ue_gsm_dy_t_def
 		(
 			DATA_DATE,
@@ -585,7 +603,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','INSERT INTO table_tile_ue_gsm_dy_c_def ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UE_GSM','Insert into table_tile_ue_gsm_dy_c_def ', NOW());
 	SET @SqlCmd=CONCAT('REPLACE INTO ',GT_DB,'.table_tile_ue_gsm_dy_c_def
 		(
 			DATA_DATE,
@@ -593,6 +611,7 @@ BEGIN
 			CELL_ID,
 			CELL_LON,
 			CELL_LAT,
+			CELL_NAME,
 			UE_CNT
 		)
 		SELECT
@@ -601,6 +620,7 @@ BEGIN
 			,B.CELL_ID
 			,B.CELL_LON
 			,B.CELL_LAT
+			,B.CELL_NAME
 			,CASE WHEN A.UE_CNT IS NULL AND B.UE_CNT IS NULL THEN NULL ELSE IFNULL(A.UE_CNT,0) + IFNULL(B.UE_CNT,0) END AS UE_CNT
 		FROM ',GT_DB,'.table_tile_ue_gsm_dy_c_def a RIGHT JOIN 
 		(
@@ -616,6 +636,7 @@ BEGIN
 				DATA_DATE
 				,BSC_ID
 				,CELL_ID
+			ORDER BY NULL
 		) B
 		ON  A.DATA_DATE=B.DATA_DATE
 		AND A.BSC_ID=B.BSC_ID

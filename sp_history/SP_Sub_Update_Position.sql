@@ -3,8 +3,6 @@ USE `gt_gw_main`$$
 DROP PROCEDURE IF EXISTS `SP_CreateDB_LTE`$$
 CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Sub_Update_Position`(IN GT_DB VARCHAR(100),IN GT_COVMO VARCHAR(100))
 BEGIN
-	
-	
 	DECLARE GT_DB_START_HOUR VARCHAR(10) DEFAULT SUBSTRING(RIGHT(GT_DB,18),10,4);
 	DECLARE START_TIME DATETIME DEFAULT SYSDATE();
 	DECLARE CURRENT_NT_DB VARCHAR(50) DEFAULT CONCAT('gt_nt_',gt_strtok(GT_DB,3,'_'));
@@ -20,9 +18,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;	
 	
-	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_Position_New','CREATE TABLE-tmp_table_indoor_prob', NOW());
-	
 	
 	SET @SqlCmd=CONCAT('	CREATE TABLE ',GT_DB,'.`tmp_table_indoor_prob` 
 					(
@@ -36,22 +32,17 @@ BEGIN
 					  `OUTDOOR_POISSON` DOUBLE DEFAULT NULL,
 					  `INDOOR_PROB` SMALLINT DEFAULT NULL,
 					  KEY `PG_DELAY` (`PG_Delay`,`RSCP`)
-					) ENGINE=MYISAM ');				
-				
+					) ENGINE=MYISAM ');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt; 
 	
-	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_Position_New','CREATE TABLE-tmp_table_indoor_prob_pre', NOW());
-	
 	
 	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_table_indoor_prob_pre;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;		
-	
-	
 	
 	SET @SqlCmd=CONCAT('	CREATE TABLE ',GT_DB,'.`tmp_table_indoor_prob_pre` ENGINE=MYISAM
 				SELECT * FROM ',GT_DB,'.table_position FORCE INDEX(seq_id)
@@ -59,16 +50,12 @@ BEGIN
 				
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt; 			
-	
+	DEALLOCATE PREPARE Stmt; 
 	
 	SET @SqlCmd=CONCAT('CREATE INDEX IX_RNC_CELL_ID ON ',GT_DB,'.tmp_table_indoor_prob_pre (`RNC_ID`,`CELL_ID`);');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	
-	
-	
 			
 	SET @SqlCmd =CONCAT('SELECT COUNT(*) INTO @INDEX_FLAG  FROM INFORMATION_SCHEMA.STATISTICS 
 				WHERE table_schema =  ''',CURRENT_NT_DB, ''' 
@@ -77,20 +64,14 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	
-	
 	IF @INDEX_FLAG=0 THEN 
-		
 		SET @SqlCmd=CONCAT('CREATE INDEX IX_INDOOR ON ',CURRENT_NT_DB,'.nt_current (`INDOOR`);');
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
-	
 	END IF ;
 	
-	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_Position_New','CREATE TABLE-tmp_nt_pre', NOW());
-	
 	
 	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_nt_pre;');
 	PREPARE Stmt FROM @SqlCmd;
@@ -113,17 +94,13 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;	
-			
-	
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_Position_New','CREATE TABLE-tmp_table_indoor_prob_pre_2', NOW());
-	
 	
 	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_table_indoor_prob_pre_2;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;		
-	
+	DEALLOCATE PREPARE Stmt;	
 	
 	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.tmp_table_indoor_prob_pre_2 ENGINE=MYISAM 
 			    SELECT A.* FROM  ',GT_DB,'.tmp_table_indoor_prob_pre A FORCE INDEX (IX_RNC_CELL_ID),  ',GT_DB,'.tmp_nt_pre B 	 	
@@ -153,7 +130,6 @@ BEGIN
 	DEALLOCATE PREPARE Stmt; 
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_Position_New','UPDATE PG_AVG of tmp_table_indoor_prob', NOW());
-		
 	
 	SET @SqlCmd=CONCAT('	UPDATE ',GT_DB,'.`tmp_table_indoor_prob` a,  
 				(SELECT PG_DELAY
@@ -169,10 +145,7 @@ BEGIN
 	EXECUTE Stmt; 
 	DEALLOCATE PREPARE Stmt; 
 	
-	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_Position_New','UPDATE PG_STDEV of tmp_table_indoor_prob', NOW());
-	
-	
 	
 	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.`tmp_table_indoor_prob` a,  	 
 				(
@@ -189,9 +162,7 @@ BEGIN
 	EXECUTE Stmt; 
 	DEALLOCATE PREPARE Stmt; 
 	
-	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_Position_New','UPDATE INDOOR_POISSON, OUTDOOR_POISSON of tmp_table_indoor_prob', NOW());
-	
 	
 	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.`tmp_table_indoor_prob` a,  	 
 				(
@@ -210,7 +181,6 @@ BEGIN
 	EXECUTE Stmt; 
 	DEALLOCATE PREPARE Stmt; 
 	
-	
 	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.`tmp_table_indoor_prob` a,  	 
 				(
 					SELECT RSCP,PG_Delay, INDOOR_POISSON*INDOOR_POISSON*INDOOR_POISSON/(INDOOR_POISSON*INDOOR_POISSON*INDOOR_POISSON+OUTDOOR_POISSON*OUTDOOR_POISSON*OUTDOOR_POISSON)*100 AS INDOOR_PROB 
@@ -224,13 +194,10 @@ BEGIN
 	EXECUTE Stmt; 
 	DEALLOCATE PREPARE Stmt; 
 	
-	
-	
 	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_table_pos_list;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	
 	
 	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`tmp_table_pos_list` ENGINE=MYISAM 
 				SELECT DISTINCT CASE WHEN PROPAGATION_DELAY <8 THEN PROPAGATION_DELAY
@@ -250,8 +217,6 @@ BEGIN
 	EXECUTE Stmt; 
 	DEALLOCATE PREPARE Stmt; 
 	
-	
-	
 	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_table_pos_ul_dl;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
@@ -264,7 +229,6 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt; 
 	DEALLOCATE PREPARE Stmt; 
-	
 	
 	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_table_pos_all;');
 	PREPARE Stmt FROM @SqlCmd;
@@ -285,8 +249,6 @@ BEGIN
 	EXECUTE Stmt; 
 	DEALLOCATE PREPARE Stmt; 
 	
-	
-	
 	SET @SqlCmd=CONCAT('	UPDATE ',GT_DB,'.`tmp_table_pos_all` A, ',GT_DB,'. tmp_table_pos_ul_dl B
 				SET A.INDOOR_PROB=B.UL_PROB
 				WHERE A.`PG_DELAY`=B.`PG_DELAY`
@@ -295,8 +257,6 @@ BEGIN
 	EXECUTE Stmt; 
 	DEALLOCATE PREPARE Stmt; 
 	
-	
-	
 	SET @SqlCmd=CONCAT('	UPDATE ',GT_DB,'.`tmp_table_pos_all` A,  ',GT_DB,'. tmp_table_pos_ul_dl B
 				SET A.INDOOR_PROB=B.DL_PROB
 				WHERE A.`PG_DELAY`=B.`PG_DELAY`
@@ -304,9 +264,6 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt; 
 	DEALLOCATE PREPARE Stmt; 		
-	
-	
-	
 	
 	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_table_pos_makeup;');
 	PREPARE Stmt FROM @SqlCmd;
@@ -345,14 +302,12 @@ BEGIN
 	EXECUTE Stmt; 
 	DEALLOCATE PREPARE Stmt; 
 	
-	
 	SET @SqlCmd=CONCAT('	UPDATE ',GT_DB,'.`tmp_table_pos_all` A,  ',GT_DB,'.tmp_table_pos_makeup B
 				SET A.INDOOR_PROB=B.NEW_INDOOR_PROB
 				WHERE A.NUM=B.NUM ; ');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt; 
 	DEALLOCATE PREPARE Stmt; 	
-	
 			
 	SET @SqlCmd =CONCAT('SELECT COUNT(*) INTO @INDEX_FLAG2  FROM INFORMATION_SCHEMA.STATISTICS 
 				WHERE table_schema =  ''',GT_DB, ''' 
@@ -361,18 +316,12 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	
-	
 	IF @INDEX_FLAG2=0 THEN 
-		
 		SET @SqlCmd=CONCAT('CREATE INDEX IX_RSCP_PG ON ',GT_DB,'.tmp_table_pos_all (`PG_DELAY`,`NEW_RSCP`);');
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
-	
 	END IF ;
-	
-	
 		
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_Position_New','UPDATE INDOOR of table_position AS NULL', NOW());
 	
@@ -401,7 +350,6 @@ BEGIN
 	EXECUTE Stmt; 
 	DEALLOCATE PREPARE Stmt; 
 	
-		
 	SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.tmp_table_indoor_prob;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;

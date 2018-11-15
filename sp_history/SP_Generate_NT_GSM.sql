@@ -8,11 +8,20 @@ BEGIN
 	DECLARE SESSION_DATE CHAR(10);
 	DECLARE FILEDATE CHAR(8) DEFAULT NULL;
 	DECLARE WORKER_ID VARCHAR(10) DEFAULT CONNECTION_ID();
+	DECLARE PM_COUNTER_FLAG VARCHAR(10);
 	
 	SELECT gt_strtok(GT_DB,3,'_') INTO FILEDATE;
+	SELECT LOWER(`value`) INTO PM_COUNTER_FLAG FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'pm_counter';
 	SET SESSION_DATE = CONCAT(LEFT(FILEDATE,4),'-',SUBSTRING(FILEDATE,5,2),'-',SUBSTRING(FILEDATE,7,2));
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Generate_NT_GSM','Start', NOW());
+	
+-- 	CALL gt_gw_main.SP_Sub_Generate_Sys_Config(GT_DB,'gt_covmo','gsm');
+	
+	IF PM_COUNTER_FLAG = 'true' THEN
+		CALL gt_gw_main.SP_Sub_Generate_Dim_PM_Counter(GT_DB,'gt_covmo');	
+-- 		CALL gt_gw_main.SP_Alter_PM_Schema(GT_DB);
+	END IF;
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Generate_NT_GSM','Insert Data to nt_cell_current_gsm', NOW());
 	
@@ -111,7 +120,8 @@ BEGIN
 	DEALLOCATE PREPARE Stmt; 	
 	
 	CALL gt_gw_main.SP_Generate_NT_Sub_Check(GT_DB,'nt_antenna_current_gsm','CELL_NAME','','CELL_ID','GSM');
-	CALL gt_gw_main.SP_Generate_NT_Sub_Check(GT_DB,'nt_antenna_current_gsm','AZIMUTH','>=360','mod(AZIMUTH, 360)','GSM');
+	CALL gt_gw_main.SP_Generate_NT_Sub_Check(GT_DB,'nt_antenna_current_gsm','AZIMUTH','<0','IF(MOD(AZIMUTH,360)=0,0,MOD(AZIMUTH,360)+360)','GSM');
+	CALL gt_gw_main.SP_Generate_NT_Sub_Check(GT_DB,'nt_antenna_current_gsm','AZIMUTH','>359','MOD(AZIMUTH, 360)','GSM');
 	CALL gt_gw_main.SP_Generate_NT_Sub_Check(GT_DB,'nt_antenna_current_gsm','BEAMWIDTH_V','1to360','7','GSM');
 	CALL gt_gw_main.SP_Generate_NT_Sub_Check(GT_DB,'nt_antenna_current_gsm','BCCH_POWER','1to100','33','GSM');
 	CALL gt_gw_main.SP_Generate_NT_Sub_Check(GT_DB,'nt_antenna_current_gsm','DOWNTILT_EL','-90to90','0','GSM');
@@ -197,16 +207,19 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
+	SET @SqlCmd=CONCAT('Drop table if exists ',GT_DB,'.nt_antenna_gsm;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
 	
--- 	SET @SqlCmd=CONCAT('Drop table if exists ',GT_DB,'.nt_antenna_gsm;');
--- 	PREPARE Stmt FROM @SqlCmd;
--- 	EXECUTE Stmt;
--- 	DEALLOCATE PREPARE Stmt;
-	
--- 	SET @SqlCmd=CONCAT('Drop table if exists ',GT_DB,'.nt_cell_gsm;');
--- 	PREPARE Stmt FROM @SqlCmd;
--- 	EXECUTE Stmt;
--- 	DEALLOCATE PREPARE Stmt;
+	SET @SqlCmd=CONCAT('Drop table if exists ',GT_DB,'.nt_cell_gsm;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	SET @SqlCmd=CONCAT('Drop table if exists ',GT_DB,'.nt_cell_gsm;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
 	
 	SET @SqlCmd=CONCAT('Drop table if exists ',GT_DB,'.nt_neighbor_gsm;');
 	PREPARE Stmt FROM @SqlCmd;
@@ -228,8 +241,6 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	
-	CALL gt_gw_main.SP_Sub_Generate_Sys_Config(GT_DB,'gt_covmo','gsm');
 	
 	INSERT INTO gt_gw_main.SP_LOG VALUES(GT_DB,'SP_Generate_NT_GSM',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
 END$$

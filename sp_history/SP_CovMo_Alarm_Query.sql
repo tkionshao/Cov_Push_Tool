@@ -9,16 +9,10 @@ BEGIN
 	DECLARE WORKER_ID VARCHAR(10) DEFAULT CONNECTION_ID();
 	DECLARE GT_DB VARCHAR(50);
 	DECLARE CELL_STR VARCHAR(1000);
-	DECLARE EXIT HANDLER FOR SQLEXCEPTION
-	BEGIN
-		SELECT NULL;
-	END;
 		
 	SET GT_DB=CONCAT('gt_',PU_ID,'_',DATE_FORMAT(DATA_DATE,'%Y%m%d'),'_0000_0000');
-	
-	
 	IF PU_ID = 0 THEN
-		SET GT_DB='gt_global_statistic_g1';
+		SET GT_DB='gt_global_statistic';
 	END IF;
 	
  	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_CovMo_Alarm_Query','Filter Check Start',START_TIME);
@@ -136,7 +130,6 @@ BEGIN
 		SET STEP_START_TIME := SYSDATE();
 		
 		IF IFNULL(@CNT,0)=0 THEN 
-			SELECT 'No Data available!' AS NoSessionAvailable;
 			LEAVE a_label;
 		ELSE		
 			SET @SqlCmd=CONCAT(sql_fetch_str,';');
@@ -161,7 +154,6 @@ BEGIN
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;	
 	END IF;
-	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_CovMo_Alarm_Query',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
 END$$
 DELIMITER ;

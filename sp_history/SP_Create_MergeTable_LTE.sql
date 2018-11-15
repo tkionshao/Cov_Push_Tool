@@ -15,7 +15,7 @@ BEGIN
 	DECLARE CONTINUE HANDLER FOR NOT FOUND 
 	BEGIN
 		SET no_more_maps = 1;
-		SELECT '{tech:â€LTEâ€, name:â€SP-Reportâ€, status:â€2â€,message_id: â€œnullâ€, message: â€œSP_Create_MergeTable_LTE Failed LEAVE dept_loopâ€, log_path: â€œâ€}' AS message;
+		SELECT '{tech:”LTE”, name:”SP-Report”, status:”2”,message_id: “null”, message: “SP_Create_MergeTable_LTE Failed LEAVE dept_loop”, log_path: “”}' AS message;
 	END;
 	SET no_more_maps = 0;
 	OPEN csr;

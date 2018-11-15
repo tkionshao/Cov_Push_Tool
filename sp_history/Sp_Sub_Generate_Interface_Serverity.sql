@@ -24,12 +24,28 @@ BEGIN
 	ELSEIF VENDOR_SOURCE = 'AP' THEN
 		SET RUN = '';
 	END IF;
-	SET @SqlCmd=CONCAT('SELECT att_value INTO @ZOOM_LEVEL FROM ',GT_DB,RUN,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+	
+	
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @SYS_CONFIG_TILE FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
+		
+	IF gt_covmo_csv_count(@SYS_CONFIG_TILE,',') =3 THEN
+		
+		SET @SqlCmd=CONCAT('SELECT gt_covmo_csv_get(att_value,3) INTO @ZOOM_LEVEL FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	ELSE 
+		SET @SqlCmd=CONCAT('SELECT att_value INTO @ZOOM_LEVEL FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	END IF;
 	
-	INSERT INTO gt_gw_main.SP_LOG VALUES(O_GT_DB,'Sp_Sub_Generate_Interface_Serverity','START', START_TIME);
+	
+	INSERT INTO gt_gw_main.SP_LOG VALUES(O_GT_DB,'Sp_Sub_Generate_Interface_Serverity','Start', START_TIME);
 	
 	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS  ',GT_DB,RUN,'.tmp_table_interference_severity_detail;');
 	PREPARE Stmt FROM @SqlCmd;
@@ -50,7 +66,7 @@ BEGIN
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;		
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'Sp_Sub_Generate_Interface_Serverity','INSERT INTO tmp_table_interference_severity_detail ', NOW());	
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'Sp_Sub_Generate_Interface_Serverity','Insert into tmp_table_interference_severity_detail ', NOW());	
 	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,RUN,'.tmp_table_interference_severity_detail AS 
 		SELECT *
 		FROM ',GT_DB,RUN,'.`table_interference_severity_detail` WHERE 1<>1;');
@@ -70,8 +86,8 @@ BEGIN
 					, INDOOR
 					, MOVING
 					, gt_covmo_proj_geohash_to_hex_geohash(POS_AS_LOC, ',@ZOOM_LEVEL,') AS TILE_ID
-					, gt_covmo_proj_geohash_to_lng(POS_AS_LOC) AS TILE_LON
-					, gt_covmo_proj_geohash_to_lat(POS_AS_LOC) AS TILE_LAT
+					, gt_covmo_proj_geohash_to_lng(POS_AS_LOC) as TILE_LON
+					, gt_covmo_proj_geohash_to_lat(POS_AS_LOC) as TILE_LAT
 					, POS_AS1_RNC AS RNC_ID
 					, POS_AS1_CELL_INDOOR AS CELL_INDOOR
 					, POS_AS1_CLUSTER AS CLUSTER_ID
@@ -137,7 +153,7 @@ BEGIN
 	EXECUTE stmt;
 	DEALLOCATE PREPARE stmt;	
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'Sp_Sub_Generate_Interface_Serverity','INSERT INTO table_interference_severity ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'Sp_Sub_Generate_Interface_Serverity','insert into table_interference_severity ', NOW());
 	
 			
 	SET @sqlcmd =CONCAT('INSERT INTO ',GT_DB,RUN,'.table_interference_severity 

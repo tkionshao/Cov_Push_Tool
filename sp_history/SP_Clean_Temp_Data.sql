@@ -27,7 +27,11 @@ BEGIN
 		FROM information_schema.`TABLES`
 		WHERE table_schema='gt_temp_cache' AND table_name LIKE 'rpt_ccq_%';
 	
-	DECLARE CONTINUE HANDLER FOR NOT FOUND SET no_more_maps = 1;
+	DECLARE CONTINUE HANDLER FOR NOT FOUND 
+	BEGIN
+		SET no_more_maps = 1;
+		-- SELECT '{tech:”ALL ”, name:”SP-Report”, status:”2”,message_id: “null”, message: “SP_Clean_Temp_Data Failed LEAVE dept_loop”, log_path: “”}' AS message;
+	END;
 	
 	INSERT INTO gt_gw_main.SP_LOG VALUES('GHTINC','SP_Clean_Temp_Data','Start', START_TIME);
 	
@@ -148,6 +152,49 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.SP_LOG VALUES('GHTINC','SP_Clean_Temp_Data',CONCAT('Done!!!: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());		
+	INSERT INTO gt_gw_main.SP_LOG VALUES('GHTINC','SP_Clean_Temp_Data','del step14', NOW());
+	
+	SET @SqlCmd=CONCAT('DELETE FROM `gt_gw_main`.`session_status_log` WHERE LOG_DATE < ADDDATE(NOW(),INTERVAL - ',KEEP_DATE,' DAY );');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	INSERT INTO gt_gw_main.SP_LOG VALUES('GHTINC','SP_Clean_Temp_Data','del step15', NOW());
+	
+	SET @SqlCmd=CONCAT('SELECT COUNT(*) INTO @c
+		FROM information_schema.`TABLES`
+		WHERE table_schema=''gt_gw_main'' AND table_name = ''process_killed_log'';');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	IF @c>0 THEN
+		SET @SqlCmd=CONCAT('DELETE FROM gt_gw_main.`process_killed_log` WHERE INSERT_TIME < ADDDATE(NOW(),INTERVAL - (',KEEP_DATE,'+90) DAY );');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	END IF;
+	
+	INSERT INTO gt_gw_main.SP_LOG VALUES('GHTINC','SP_Clean_Temp_Data','del step16', NOW());
+	
+	SET @SqlCmd=CONCAT('SELECT COUNT(*) INTO @special_report
+		FROM information_schema.`TABLES`
+		WHERE table_schema=''gt_special_report'' AND table_name = ''special_hourly_report'';');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	IF @special_report>0 THEN
+		SET @SqlCmd=CONCAT('DELETE FROM `gt_special_report`.`special_hourly_report` WHERE `DATA_DATE` < ADDDATE(NOW(),INTERVAL - ',KEEP_DATE,' DAY );');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+		
+		SET @SqlCmd=CONCAT('DELETE FROM gt_special_report.`special_quarter_report` WHERE `DATA_DATE` < ADDDATE(NOW(),INTERVAL - ',KEEP_DATE,' DAY );');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	END IF;	
+	INSERT INTO gt_gw_main.SP_LOG VALUES('GHTINC','SP_Clean_Temp_Data',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());		
 END$$
 DELIMITER ;

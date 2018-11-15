@@ -11,6 +11,7 @@ BEGIN
 	DECLARE STARTHOUR VARCHAR(2) DEFAULT SUBSTRING(RIGHT(GT_DB,18),10,2);
 	DECLARE ENDHOUR VARCHAR(2) DEFAULT IF(SUBSTRING(RIGHT(GT_DB,18),15,2)='00','24',SUBSTRING(RIGHT(GT_DB,18),15,2));
 	DECLARE RUN VARCHAR(20);
+	DECLARE CURRENT_NT_DB VARCHAR(50) DEFAULT CONCAT('gt_nt_',gt_strtok(GT_DB,3,'_'));
 	SELECT gt_strtok(GT_DB,2,'_') INTO RNC_ID;
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_UL_SIR','START', NOW());
@@ -27,10 +28,24 @@ BEGIN
 	ELSEIF VENDOR_SOURCE = 'AP' THEN
 		SET RUN = '';
 	END IF;
-	SET @SqlCmd=CONCAT('SELECT att_value INTO @ZOOM_LEVEL FROM ',GT_DB,RUN,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+	
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @SYS_CONFIG_TILE FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
+		
+	IF gt_covmo_csv_count(@SYS_CONFIG_TILE,',') =3 THEN
+		
+		SET @SqlCmd=CONCAT('SELECT gt_covmo_csv_get(att_value,3) INTO @ZOOM_LEVEL FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	ELSE 
+		SET @SqlCmd=CONCAT('SELECT att_value INTO @ZOOM_LEVEL FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	END IF;
 	
 	SET @SqlCmd=CONCAT('ALTER TABLE ',GT_DB,RUN,'.table_tile_ul_sir TRUNCATE PARTITION h',PARTITION_ID,';');
 	PREPARE Stmt FROM @SqlCmd;

@@ -12,6 +12,5 @@ BEGIN
 	ELSE
 		SELECT 0 AS Message;
 	END IF;
-	
 END$$
 DELIMITER ;

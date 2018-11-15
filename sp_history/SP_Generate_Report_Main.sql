@@ -19,11 +19,11 @@ BEGIN
 	DECLARE v_1 INT;
 	DECLARE SP_Process VARCHAR(100);
 	DECLARE TAC_REPORT_FLAG VARCHAR(10);
+	DECLARE PM_COUNTER_FLAG VARCHAR(10);
+	DECLARE CURRENT_NT_DB VARCHAR(50) DEFAULT CONCAT('gt_nt_',gt_strtok(GT_DB,3,'_'));
 	
 	SELECT LOWER(`value`) INTO TAC_REPORT_FLAG  FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = '01.tac.report' ;
-	
-	
-	CALL SP_Sub_Set_Session_Param(GT_DB);
+	SELECT LOWER(`value`) INTO PM_COUNTER_FLAG FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'pm_counter';
 	SELECT REPLACE(GT_DB,SH_EH,'0000_0000') INTO GT_DB;
 	SELECT gt_strtok(GT_DB,2,'_') INTO RNC_ID;
 	
@@ -41,8 +41,7 @@ BEGIN
 	SET @SqlCmd=CONCAT('SELECT COUNT(*) INTO @TABLE_CALL_CNT FROM ',GT_DB,RUN,'.table_call WHERE DATA_HOUR >= ',STARTHOUR,' AND DATA_HOUR < ',ENDHOUR,';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;	
-	
+	DEALLOCATE PREPARE Stmt;		
 	
 	SET @SqlCmd =CONCAT('UPDATE gt_gw_main.session_information 
 			     SET SP_STARTTIME=''',NOW(),'''
@@ -60,8 +59,10 @@ BEGIN
 	CALL GT_GW_MAIN.SP_Sub_Generate_TAC(O_GT_DB,KIND,VENDOR_SOURCE,GT_COVMO);
 	CALL GT_GW_MAIN.SP_Sub_Generate_Dominat_Cell(O_GT_DB,KIND,VENDOR_SOURCE,GT_COVMO);
 	CALL GT_GW_MAIN.SP_Sub_Generate_IMSI(O_GT_DB,KIND,VENDOR_SOURCE,GT_COVMO);
-	
-	
+	-- CALL GT_GW_MAIN.SP_Generate_PM_counter_UMTS_Daily(O_GT_DB);	
+	IF PM_COUNTER_FLAG = 'true' THEN
+		CALL GT_GW_MAIN.SP_PM_COUNTER_AGGR(O_GT_DB, CURRENT_NT_DB, 2);
+	END IF;
 	IF TAC_REPORT_FLAG = 'true' THEN 
 		CALL GT_GW_MAIN.SP_Sub_Generate_TAC_Start(O_GT_DB);
 		CALL GT_GW_MAIN.SP_Sub_Generate_TAC_End(O_GT_DB);
@@ -165,11 +166,11 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	SELECT COUNT(*) INTO @CHECK_CNT FROM `gt_schedule`.`job_task`;
-	
-	IF @CHECK_CNT = 0 THEN
-		ALTER EVENT gt_schedule.job_worker DISABLE  ;
-	END IF;
+-- 	SELECT COUNT(*) INTO @CHECK_CNT FROM `gt_schedule`.`job_task`;
+-- 	
+-- 	IF @CHECK_CNT = 0 THEN
+-- 		ALTER EVENT gt_schedule.job_worker DISABLE  ;
+-- 	END IF;
 	
 	
 	INSERT INTO gt_gw_main.SP_LOG VALUES(O_GT_DB,'SP_Generate_Report_Main',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());

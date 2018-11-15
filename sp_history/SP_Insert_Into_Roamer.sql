@@ -12,8 +12,8 @@ BEGIN
 	INSERT INTO gt_gw_main.sp_log VALUES(TO_GT_DB,'SP_Insert_Into_Roamer','START', NOW());
 	
 	IF TECH = 'gsm' THEN
-
-
+--  		SET SOURCE_TABLE = 'table_call_gsm_update';
+-- 		SET TARGET_TABLE = 'table_roamer_call_gsm';
 		SET FROM_GT_DB = TO_GT_DB;
 		SET SOURCE_TABLE = CONCAT('table_call_gsm_',SH);
 		SET TARGET_TABLE = CONCAT('table_roamer_call_gsm_',SH);

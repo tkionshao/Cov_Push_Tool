@@ -1,7 +1,7 @@
 DELIMITER $$
 USE `gt_gw_main`$$
 DROP PROCEDURE IF EXISTS `SP_CreateDB_LTE`$$
-CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Sub_Update_IMEI`(IN GT_DB VARCHAR(100),IN GT_COVMO VARCHAR(100))
+CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Sub_Update_IMEI`(IN GT_DB VARCHAR(100),IN GT_COVMO VARCHAR(100),IN TECH_MASK TINYINT(4))
 BEGIN
 	DECLARE GT_SESSION_ID INT;
 	DECLARE START_TIME DATETIME DEFAULT SYSDATE();
@@ -10,8 +10,18 @@ BEGIN
 	DECLARE WORKER_ID VARCHAR(10) DEFAULT CONNECTION_ID();	
 	
 	SELECT SESSION_ID INTO GT_Session_ID FROM gt_gw_main.session_information WHERE SESSION_DB=GT_DB;
-	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_IMEI','START', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_IMEI','Start', NOW());
 	SET STEP_START_TIME := SYSDATE();
+	
+	IF TECH_MASK=1 THEN 
+		SET @table_call='table_call_gsm';
+	ELSEIF TECH_MASK=2 THEN 
+		SET @table_call='table_call';	
+	ELSEIF TECH_MASK=4 THEN 		
+		SET @table_call='table_call_lte';
+	ELSE 
+		SET @table_call='table_call';
+	END IF;
 	
 	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS ',GT_DB,'.tmp_dim_imsi_imei','_',WORKER_ID,';');
 	PREPARE Stmt FROM @SqlCmd;
@@ -25,22 +35,22 @@ BEGIN
 	
 	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_dim_imsi_imei','_',WORKER_ID,' 
 				(
-				`SESSION_ID` BIGINT(20) DEFAULT NULL,
-				  `DATA_TIME` DATETIME DEFAULT NULL,
-				  `IMSI` VARCHAR(20),
-				  `IMEI` VARCHAR(20),
+				`SESSION_ID` bigint(20) DEFAULT NULL,
+				  `DATA_TIME` datetime DEFAULT NULL,
+				  `IMSI` varchar(20),
+				  `IMEI` varchar(20),
 				  PRIMARY KEY (IMSI,IMEI)
-				) ENGINE=MYISAM DEFAULT CHARSET=latin1;');
+				) ENGINE=MyISAM DEFAULT CHARSET=latin1;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
 	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_dim_imsi_imei','_null_',WORKER_ID,' 
 				(
-					`IMSI` VARCHAR(20),
-					`IMEI` VARCHAR(20),
+					`IMSI` varchar(20),
+					`IMEI` varchar(20),
 					KEY IX_IMSI (IMSI,IMEI)
-				) ENGINE=MYISAM DEFAULT CHARSET=latin1;');
+				) ENGINE=MyISAM DEFAULT CHARSET=latin1;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
@@ -56,7 +66,7 @@ BEGIN
 					SELECT ', GT_Session_ID,' AS SESSION_ID,t.START_TIME AS DATA_TIME,t.IMSI,t.IMEI,
 						@num := IF(@IMSI=t.IMSI , @num + 1, 1) AS `RANK`,
 						@IMSI := IMSI AS dummy
-					FROM ',GT_DB,'.table_call t
+					FROM ',GT_DB,'.',@table_call,' t
 					,(SELECT @num := 0) r,(SELECT @IMSI:='''') s 
 					WHERE t.IMSI IS NOT NULL AND TRIM(t.IMSI) <> '''' 
 					AND t.IMEI IS NOT NULL AND TRIM(t.IMEI) <> ''''
@@ -73,7 +83,7 @@ BEGIN
 	
 	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.tmp_dim_imsi_imei','_null_',WORKER_ID,'
 				SELECT DISTINCT IMSI,IMEI
-				FROM ',GT_DB,'.table_call 
+				FROM ',GT_DB,'.',@table_call,' 
 				WHERE IMSI IS NOT NULL AND TRIM(IMSI) <> '''' 
 				AND IMEI IS NULL OR TRIM(IMEI) IN ('''',''FFFFFFFFFFFFFFF'',''000000000000000'',''0'');');
 	PREPARE Stmt FROM @SqlCmd;
@@ -110,14 +120,14 @@ BEGIN
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_IMEI',CONCAT('UPDATE gt_gw_main.dim_imsi_imei cost:',TIMESTAMPDIFF(SECOND,STEP_START_TIME,SYSDATE()),' sec.'), NOW());
 	SET STEP_START_TIME := SYSDATE();
 	
-	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.table_call A FORCE INDEX(IMSI),',GT_DB,'.tmp_dim_imsi_imei','_null_',WORKER_ID,' B
-			    SET A.IMEI_NEW=B.IMEI
+	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.',@table_call,' A FORCE INDEX(IMSI),',GT_DB,'.tmp_dim_imsi_imei','_null_',WORKER_ID,' B
+			    SET ',CASE WHEN TECH_MASK=2 THEN 'A.IMEI_NEW' ELSE 'A.IMEI' END ,'=B.IMEI
 			    WHERE A.IMSI=B.IMSI
 			    ;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;	
-	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_IMEI',CONCAT('UPDATE table_call NULL cost:',TIMESTAMPDIFF(SECOND,STEP_START_TIME,SYSDATE()),' sec.'), NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_IMEI',CONCAT('UPDATE ',@table_call,' null cost:',TIMESTAMPDIFF(SECOND,STEP_START_TIME,SYSDATE()),' sec.'), NOW());
 	SET STEP_START_TIME := SYSDATE();
 	
 	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS ',GT_DB,'.tmp_dim_imsi_imei','_',WORKER_ID,';');
@@ -129,6 +139,11 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
+	
+	IF TECH_MASK=2 THEN 
+		CALL gt_gw_main.`SP_Sub_Update_APN`(GT_DB,GT_COVMO);
+	END IF;
+	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_IMEI',CONCAT(' Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
 	
 END$$

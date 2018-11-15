@@ -37,7 +37,7 @@ BEGIN
 		SELECT 'Database server is currently busy, try again later.' AS IsSuccess;
 	END;
 	
-	
+	-- Incorrect key file for table
 	DECLARE CONTINUE HANDLER FOR 1034
 	BEGIN
 		IF IMSI_PU IS NULL THEN
@@ -45,10 +45,10 @@ BEGIN
 		ELSEIF IMSI_PU = -1 THEN
 			SET @PU_CNT= 0;
 		END IF;
-		SELECT '{tech:â€ALL â€, name:â€SP-Reportâ€, status:â€2â€,message_id: â€œnullâ€, message: â€œSP_KPI_multi_RNC_split Failed Incorrect key file for table; try to repair itâ€, log_path: â€œâ€}' AS message;
+		SELECT '{tech:”ALL ”, name:”SP-Report”, status:”2”,message_id: “null”, message: “SP_KPI_multi_RNC_split Failed Incorrect key file for table; try to repair it”, log_path: “”}' AS message;
 	END;
 	
-	
+	-- Table './xxxx/table name' is marked as crashed 
 	DECLARE CONTINUE HANDLER FOR 145
 	BEGIN
 		IF IMSI_PU IS NULL THEN
@@ -56,10 +56,10 @@ BEGIN
 		ELSEIF IMSI_PU = -1 THEN
 			SET @PU_CNT= 0;
 		END IF;
-		SELECT '{tech:â€ALL â€, name:â€SP-Reportâ€, status:â€2â€,message_id: â€œnullâ€, message: â€œSP_KPI_multi_RNC_split Table was marked as crashed and should be repaired; try to repair itâ€, log_path: â€œâ€}' AS message;
+		SELECT '{tech:”ALL ”, name:”SP-Report”, status:”2”,message_id: “null”, message: “SP_KPI_multi_RNC_split Table was marked as crashed and should be repaired; try to repair it”, log_path: “”}' AS message;
 	END;
 	
-	
+	-- Table 'my table name' is marked as crashed 
 	DECLARE CONTINUE HANDLER FOR 144
 	BEGIN
 		IF IMSI_PU IS NULL THEN
@@ -67,7 +67,7 @@ BEGIN
 		ELSEIF IMSI_PU = -1 THEN
 			SET @PU_CNT= 0;
 		END IF;
-		SELECT '{tech:â€ALL â€, name:â€SP-Reportâ€, status:â€2â€,message_id: â€œnullâ€, message: â€œSP_KPI_multi_RNC_split Table is crashed and last repair failed; try to repair itâ€, log_path: â€œâ€}' AS message;
+		SELECT '{tech:”ALL ”, name:”SP-Report”, status:”2”,message_id: “null”, message: “SP_KPI_multi_RNC_split Table is crashed and last repair failed; try to repair it”, log_path: “”}' AS message;
 	END;
 		
 	SET SESSION group_concat_max_len=@@max_allowed_packet;

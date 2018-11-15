@@ -17,7 +17,7 @@ BEGIN
 	
 	INSERT INTO gt_gw_main.SP_LOG VALUES(GT_DB,'SP_Generate_Quarter_tablecallcnt','Start', START_TIME);
 	
-
+-- 	SELECT GET_LOCK('GT_TABLECALLCNT_LOCK', 20) INTO @aa; 	
 	
 	INSERT INTO gt_gw_main.SP_LOG VALUES(GT_DB,'SP_Generate_Quarter_tablecallcnt',CONCAT('DELETE ',GT_DB,SH_EH), NOW());
 	SET @SqlCmd=CONCAT(' DROP TEMPORARY TABLE IF EXISTS ',GT_DB,'.table_call_cnt_',WORKER_ID,' ;');
@@ -56,7 +56,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;	
 	
-
+-- 	SELECT RELEASE_LOCK('GT_TABLECALLCNT_LOCK') INTO @aa;	
 	INSERT INTO gt_gw_main.SP_LOG VALUES(GT_DB,'SP_Generate_Quarter_tablecallcnt',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
 END$$
 DELIMITER ;

@@ -11,10 +11,14 @@ BEGIN
 	DECLARE DB VARCHAR(50) DEFAULT 'gt_gw_main';
 	
 	DECLARE csr2 CURSOR FOR
-	SELECT `STATUS` AS T_STATUS, gt_strtok(COMMAND,2,'''') AS T_NAME FROM gt_schedule.job_task_history 
-	WHERE JOB_ID = JOBID;
-	DECLARE CONTINUE HANDLER FOR NOT FOUND SET no_more_maps = 1;
-	SET no_more_maps = 0;
+		SELECT `STATUS` AS T_STATUS, gt_strtok(COMMAND,2,'''') AS T_NAME FROM gt_schedule.job_task_history 
+		WHERE JOB_ID = JOBID;
+		
+	DECLARE CONTINUE HANDLER FOR NOT FOUND 
+	BEGIN
+		SET no_more_maps = 1;
+		SELECT '{tech:”ALL ”, name:”SP-Report”, status:”2”,message_id: “null”, message: “SP_Auto_Sub_Generate_View Failed LEAVE dept_loop”, log_path: “”}' AS message;
+	END;
 	
 	SET no_more_maps = 0;
 	OPEN csr2;
@@ -36,8 +40,7 @@ BEGIN
         UNTIL no_more_maps
         END REPEAT dept_loop;
 	CLOSE csr2;
-	select UNION_STR;
- 
-	set @RETURN_UNION_STR = UNION_STR;
+ 	SELECT UNION_STR; 
+	SET @RETURN_UNION_STR = UNION_STR;
 END$$
 DELIMITER ;

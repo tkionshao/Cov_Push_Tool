@@ -8,14 +8,21 @@ BEGIN
 	DECLARE SESSION_DATE CHAR(10);
 	DECLARE FILEDATE CHAR(8) DEFAULT NULL;
 	DECLARE WORKER_ID VARCHAR(10) DEFAULT CONNECTION_ID();
+	DECLARE PM_COUNTER_FLAG VARCHAR(10);	
 	
+	SELECT LOWER(`value`) INTO PM_COUNTER_FLAG FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'pm_counter';
 	SELECT gt_strtok(GT_DB,3,'_') INTO FILEDATE;
 	
 	SET SESSION_DATE = CONCAT(LEFT(FILEDATE,4),'-',SUBSTRING(FILEDATE,5,2),'-',SUBSTRING(FILEDATE,7,2));
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Generate_NT','Update NT Date', NOW());
 	
-	CALL gt_gw_main.SP_Sub_Generate_Sys_Config(GT_DB,'gt_covmo','umts');
+-- 	CALL gt_gw_main.SP_Sub_Generate_Sys_Config(GT_DB,'gt_covmo','umts');
+	
+	IF PM_COUNTER_FLAG = 'true' THEN
+		CALL gt_gw_main.SP_Sub_Generate_Dim_PM_Counter(GT_DB,'gt_covmo');	
+-- 		CALL gt_gw_main.SP_Alter_PM_Schema(GT_DB);
+	END IF;
 	
 	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.nt_cell SET NT_DATE=''',SESSION_DATE,' 00:00:00'';');
 	PREPARE Stmt FROM @SqlCmd;
@@ -129,8 +136,8 @@ BEGIN
 	DEALLOCATE PREPARE Stmt; 	
 	
 	CALL gt_gw_main.SP_Generate_NT_Sub_Check(GT_DB,'nt_antenna_current','CELL_NAME','','CELL_ID','UMTS');
-	CALL gt_gw_main.SP_Generate_NT_Sub_Check(GT_DB,'nt_antenna_current','AZIMUTH','','0','UMTS');
-	CALL gt_gw_main.SP_Generate_NT_Sub_Check(GT_DB,'nt_antenna_current','AZIMUTH','>360','360','UMTS');
+	CALL gt_gw_main.SP_Generate_NT_Sub_Check(GT_DB,'nt_antenna_current','AZIMUTH','<0','IF(MOD(AZIMUTH,360)=0,0,MOD(AZIMUTH,360)+360)','UMTS');
+	CALL gt_gw_main.SP_Generate_NT_Sub_Check(GT_DB,'nt_antenna_current','AZIMUTH','>359','MOD(AZIMUTH, 360)','UMTS');
 	CALL gt_gw_main.SP_Generate_NT_Sub_Check_Special(GT_DB,'nt_antenna_current','ANTENNA_TYPE','1to3','UMTS');
  	CALL gt_gw_main.SP_Generate_NT_Sub_Check_Special(GT_DB,'nt_antenna_current','BEAMWIDTH_H','1to360','UMTS');
 	CALL gt_gw_main.SP_Generate_NT_Sub_Check_Special(GT_DB,'nt_antenna_current','HEIGHT','0to1000','UMTS');
@@ -426,7 +433,7 @@ BEGIN
 				SELECT 
 					DISTINCT A.CLUSTER_NAME AS CLUSTER_NAME,1 AS ENABLED
 				FROM ',GT_DB,'.nt_current A LEFT JOIN `',GT_DB,'`.`dim_cluster_group_',WORKER_ID,'`  B
-				ON A.CLUSTER_NAME=B.CLUSTER_NAME COLLATE utf8_swedish_ci
+				ON A.CLUSTER_NAME=B.CLUSTER_NAME
 				WHERE B.CLUSTER_ID IS NULL AND A.CLUSTER_NAME<>'''' AND A.CLUSTER_NAME IS NOT NULL;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
@@ -453,7 +460,7 @@ BEGIN
 	
 	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.nt_current A ,`',GT_DB,'`.`cur_dim_cluster_group_',WORKER_ID,'`  B
 				SET A.CLUSTER_ID=B.CLUSTER_ID
-				WHERE A.CLUSTER_NAME=B.CLUSTER_NAME COLLATE utf8_swedish_ci;');
+				WHERE A.CLUSTER_NAME=B.CLUSTER_NAME;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
@@ -474,15 +481,15 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
--- 	SET @SqlCmd=CONCAT('Drop table if exists ',GT_DB,'.nt_antenna;');
--- 	PREPARE Stmt FROM @SqlCmd;
--- 	EXECUTE Stmt;
--- 	DEALLOCATE PREPARE Stmt;
--- 	
--- 	SET @SqlCmd=CONCAT('Drop table if exists ',GT_DB,'.nt_cell;');
--- 	PREPARE Stmt FROM @SqlCmd;
--- 	EXECUTE Stmt;
--- 	DEALLOCATE PREPARE Stmt;
+	SET @SqlCmd=CONCAT('Drop table if exists ',GT_DB,'.nt_antenna;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('Drop table if exists ',GT_DB,'.nt_cell;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
 	
 	SET @SqlCmd=CONCAT('Drop table if exists ',GT_DB,'.nt_cell_attribute;');
 	PREPARE Stmt FROM @SqlCmd;

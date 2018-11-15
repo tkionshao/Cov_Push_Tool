@@ -42,6 +42,7 @@ BEGIN
                              `MODEL_ID`,
                              `CALL_TYPE`,
                              `CALL_STATUS`,
+			     `RRC_REQUEST_TYPE`,
                              `TTL_CNT`,
                              `RRC_CONNECT_DURATION_SUM`,
                              `RRC_CONNECT_DURATION_CNT`,
@@ -68,7 +69,21 @@ BEGIN
 			     `STREAMINGCALL_CNT`,
 			     `INTERACTIVECALL_CNT`,
 			     `BACKGROUNDCALL_CNT`,
-			     `EMERGENCYCALL_CNT` )                               
+			     `EMERGENCYCALL_CNT`,
+			     `PDP_ACTIVATION_REQUEST_SUM`,
+			     `PDP_ACTIVATION_REJECT_SUM`,
+			     `PDP_ACTIVATION_ACCEPT_SUM`,
+			     `PDP_DEACTIVATION_REQUEST_SUM`,
+			     `PDP_DEACTIVATION_ACCEPT_SUM`,
+			     `AUTH_CIPH_REQUEST_SUM`,
+			     `AUTH_CIPH_FAILURE_SUM`,
+			     `AUTH_CIPH_REJECT_SUM`,
+			     `SECURITY_MODE_SUCCESS_SUM`,
+			     `LU_ACCEPT_SUM`,
+			     `LU_REQUEST_SUM`,
+			     `RAU_ACCEPT_SUM`,
+			     `RAU_REQUEST_SUM`,
+			     `CALL_STATUS_6_CNT`)                               
 			SELECT 
 				`DATA_DATE`,`DATA_HOUR`
 				,POS_FIRST_RNC
@@ -76,6 +91,7 @@ BEGIN
 				,MODEL_ID
 				,CALL_TYPE
 				,CALL_STATUS
+				,RRC_REQUEST_TYPE
 				,COUNT(*) AS TTL_CNT
 				,SUM(RRC_CONNECT_DURATION/1000) AS RRC_CONNECT_DURATION_SUM
 				,COUNT(RRC_CONNECT_DURATION) AS RRC_CONNECT_DURATION_CNT
@@ -103,10 +119,23 @@ BEGIN
 				,SUM(IF(RRC_REQUEST_TYPE IN (2,7),1,0)) AS INTERACTIVECALL_CNT
 				,SUM(IF(RRC_REQUEST_TYPE IN (3,8),1,0)) AS BACKGROUNDCALL_CNT
 				,SUM(IF(RRC_REQUEST_TYPE IN (9),1,0)) AS EMERGENCYCALL_CNT
+				,SUM(PDP_ACTIVATION_REQUEST) AS PDP_ACTIVATION_REQUEST_SUM
+				,SUM(PDP_ACTIVATION_REJECT) AS PDP_ACTIVATION_REJECT_SUM
+				,SUM(PDP_ACTIVATION_ACCEPT) AS PDP_ACTIVATION_ACCEPT_SUM
+				,SUM(PDP_DEACTIVATION_REQUEST) AS PDP_DEACTIVATION_REQUEST_SUM
+				,SUM(PDP_DEACTIVATION_ACCEPT) AS PDP_DEACTIVATION_ACCEPT_SUM
+				,SUM(AUTH_CIPH_REQUEST) AS AUTH_CIPH_REQUEST_SUM
+				,SUM(AUTH_CIPH_FAILURE) AS AUTH_CIPH_FAILURE_SUM
+				,SUM(AUTH_CIPH_REJECT) AS AUTH_CIPH_REJECT_SUM
+				,SUM(SECURITY_MODE_SUCCESS) AS SECURITY_MODE_SUCCESS_SUM
+				,SUM(LU_ACCEPT) AS LU_ACCEPT_SUM
+				,SUM(LU_REQUEST) AS LU_REQUEST_SUM
+				,SUM(RAU_ACCEPT) AS RAU_ACCEPT_SUM
+				,SUM(RAU_REQUEST) AS RAU_REQUEST_SUM
+				,SUM(IF(CALL_STATUS=6, 1, 0)) AS CALL_STATUS_6_CNT
 			FROM ',GT_DB,RUN,'.table_call
 			WHERE DATA_HOUR >= ',STARTHOUR,' AND DATA_HOUR < ',ENDHOUR,'
 			AND IMEI_NEW IS NOT NULL 
-			AND POS_FIRST_RNC = ',RNC_ID,'
 			GROUP BY 
 					DATA_DATE
 					, DATA_HOUR
@@ -115,6 +144,7 @@ BEGIN
 					, MODEL_ID
 					, CALL_TYPE 
 					, CALL_STATUS
+					, RRC_REQUEST_TYPE
 			ORDER BY NULL;');
         PREPARE Stmt FROM @SqlCmd;
         EXECUTE Stmt;
@@ -123,22 +153,22 @@ BEGIN
         
         INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_TAC','Update the value of MAKE_MODEL, MAKE_ID, MODEL_ID in table_tac', NOW());
  
-	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS ',GT_DB,RUN,'.tmp_dim_handset;');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;	
+		SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS ',GT_DB,RUN,'.tmp_dim_handset;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;	
 	
-	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,RUN,'.tmp_dim_handset AS 
-		SELECT make_id,model_id,manufacturer,model FROM ',GT_COVMO,'.dim_handset 
-		GROUP BY make_id,model_id;');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-						
-	SET @SqlCmd=CONCAT('CREATE INDEX IX_model_id ON ',GT_DB,RUN,'.tmp_dim_handset (`make_id`,`model_id`,manufacturer,model);');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
+		SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,RUN,'.tmp_dim_handset AS 
+			SELECT make_id,model_id,manufacturer,model FROM ',GT_COVMO,'.dim_handset 
+			GROUP BY make_id,model_id;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+							
+		SET @SqlCmd=CONCAT('CREATE INDEX IX_model_id ON ',GT_DB,RUN,'.tmp_dim_handset (`make_id`,`model_id`,manufacturer,model);');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
         
         SET @SqlCmd=CONCAT(' UPDATE ',GT_DB,RUN,'.table_tac A, 
 					',GT_DB,RUN,'.tmp_dim_handset B
@@ -150,12 +180,11 @@ BEGIN
         EXECUTE Stmt;
         DEALLOCATE PREPARE Stmt; 
         
-        SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS ',GT_DB,RUN,'.tmp_dim_handset;');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;	
+		SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS ',GT_DB,RUN,'.tmp_dim_handset;');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;	
         
         INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_TAC',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
-                        
 END$$
 DELIMITER ;

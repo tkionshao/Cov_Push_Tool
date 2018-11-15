@@ -17,8 +17,7 @@ BEGIN
 			SELECT FALSE;
 		ELSE
 			SELECT TRUE;
-		END IF;
-	
+		END IF;	
 	ELSEIF STEP = 'Check_NT_tmp_table' THEN
 		INSERT INTO gt_gw_main.sp_log VALUES(NT_DATE,'SP_Check_GtCovmo_NT','Check_NT_tmp_table', NOW());
 		SELECT COUNT(*) INTO @T_CNT1 FROM `information_schema`.`TABLES` WHERE `TABLE_SCHEMA` = 'gt_gw_main' AND `TABLE_NAME` = 'nt_antenna';
@@ -58,11 +57,7 @@ BEGIN
 		DROP TABLE IF EXISTS gt_gw_main.`tmp_antenna_info`;
 		DROP TABLE IF EXISTS gt_gw_main.`nt_cell_gsm`;
 		DROP TABLE IF EXISTS gt_gw_main.`nt_sc_code`;
-	
 	END IF;
-			
 	INSERT INTO gt_gw_main.SP_LOG VALUES(NT_DATE,'SP_Check_GtCovmo_NT',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
-	
-	
 END$$
 DELIMITER ;

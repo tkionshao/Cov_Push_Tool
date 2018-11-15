@@ -62,7 +62,7 @@ BEGIN
 	DEALLOCATE PREPARE Stmt;
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(FROM_GT_DB,'SP_Process_Daily_session_GSM','IMSI Diff', NOW());
-
+-- 	CALL gt_gw_main.SP_Generate_IMSI_PU(FROM_GT_DB,1);
 	IF IMSI_IMEI_DIFF_FLAG = 'true' THEN 
 		CALL gt_gw_main.`SP_Generate_IMSI_IMEI`(FROM_GT_DB,1);
 	ELSE

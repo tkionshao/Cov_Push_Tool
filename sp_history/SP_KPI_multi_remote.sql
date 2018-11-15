@@ -14,6 +14,7 @@ BEGIN
 	DECLARE WORKER_ID VARCHAR(10) DEFAULT CONNECTION_ID();
 	DECLARE PU_ID INT;
 	DECLARE DATA_DATE DATE;
+	DECLARE DS_DATE DATETIME;
 	DECLARE NT_DB VARCHAR(100);
 	DECLARE FILTER_STR MEDIUMTEXT;
 	DECLARE POS_KIND_LOC VARCHAR(10) DEFAULT '';
@@ -83,6 +84,7 @@ BEGIN
 	
 	SELECT gt_strtok(GT_DB,2,'_') INTO PU_ID;
 	SELECT DATE(gt_strtok(GT_DB,3,'_')) INTO DATA_DATE;		
+	SELECT gt_strtok(GT_DB,3,'_') INTO DS_DATE;		
 	SELECT CONCAT('gt_nt_',gt_strtok(GT_DB,3,'_')) INTO NT_DB;
 	SET STR_IMSI_LTE=CONCAT('A.`CALL_ID` AS `CALL_ID`,
 				 CONCAT(A.START_TIME,''.'',LPAD(A.START_TIME_MS,3,0)) AS `START_TIME`,
@@ -3326,7 +3328,7 @@ SET STR_IMSI_MR_LTE=CONCAT('CALL_ID,
 								(CASE WHEN nt.CM_OPERATION_STATE=1 THEN ''Enable''
 									WHEN nt.CM_OPERATION_STATE=0 THEN ''Disable''
 									ELSE '''' END) AS OPERSTATE_ENABLE,	
-								  dat.ds_date,
+								 ''' , DS_DATE,''' AS ds_date,
 								',PU_ID,' AS pu,
 								  1 AS TECH_MASK 
 								FROM ',NT_DB,'.nt2_cell_gsm nt 
@@ -3354,7 +3356,7 @@ SET STR_IMSI_MR_LTE=CONCAT('CALL_ID,
 								(CASE WHEN nt.CM_OPERATION_STATE=1 THEN ''Enable''
 									WHEN nt.CM_OPERATION_STATE=0 THEN ''Disable''
 									ELSE '''' END) AS OPERSTATE_ENABLE,	
-								  dat.ds_date,
+								 ''' , DS_DATE,''' AS ds_date,
 								',PU_ID,' AS pu,
 								  1 AS TECH_MASK 
 								FROM ',NT_DB,'.nt2_cell_gsm nt 

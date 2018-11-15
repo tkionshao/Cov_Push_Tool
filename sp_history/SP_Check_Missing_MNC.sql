@@ -3,7 +3,6 @@ USE `gt_gw_main`$$
 DROP PROCEDURE IF EXISTS `SP_CreateDB_LTE`$$
 CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Check_Missing_MNC`()
 BEGIN
-	
 	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS tmp_dim_mnc_ap;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;

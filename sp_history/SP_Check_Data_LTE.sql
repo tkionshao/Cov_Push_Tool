@@ -45,6 +45,7 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
+	
 	SET @SqlCmd=CONCAT('SELECT COUNT(*) INTO @S5
 		    FROM (
 			SELECT A.serving_cell_id FROM ',GT_DB,'.table_event_lte_5 A,',CURRENT_NT_DB,'.nt_cell_current_lte B
@@ -54,6 +55,7 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
+	
 	SET @SqlCmd=CONCAT('SELECT COUNT(*) INTO @S6
 		    FROM (
 			SELECT A.serving_cell_id FROM ',GT_DB,'.table_event_lte_6 A,',CURRENT_NT_DB,'.nt_cell_current_lte B

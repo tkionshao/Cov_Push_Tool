@@ -3,14 +3,12 @@ USE `gt_gw_main`$$
 DROP PROCEDURE IF EXISTS `SP_CreateDB_LTE`$$
 CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Check_DB_Exists`(IN GT_DB VARCHAR(100))
 BEGIN
-			
 	SELECT COUNT(*) INTO @CNT FROM `information_schema`.`SCHEMATA` WHERE `SCHEMA_NAME` = GT_DB;
 	
 	IF @CNT != 1 THEN
-		SELECT 0 as Message;
+		SELECT 0 AS Message;
 	ELSE
 		SELECT 1 AS Message;
 	END IF;
-	
 END$$
 DELIMITER ;

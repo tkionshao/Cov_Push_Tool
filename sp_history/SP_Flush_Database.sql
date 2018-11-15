@@ -11,7 +11,11 @@ BEGIN
 	DECLARE csr CURSOR FOR
 	SELECT table_name FROM information_schema.TABLES WHERE table_schema = GT_DB;
 	
-	DECLARE CONTINUE HANDLER FOR NOT FOUND SET no_more_maps = 1;
+	DECLARE CONTINUE HANDLER FOR NOT FOUND 
+	BEGIN
+		SET no_more_maps = 1;
+		SELECT '{tech:”ALL ”, name:”SP-Report”, status:”2”,message_id: “null”, message: “SP_Flush_Database Failed LEAVE dept_loop”, log_path: “”}' AS message;
+	END;
 	SET no_more_maps = 0;
 	
 	OPEN csr;

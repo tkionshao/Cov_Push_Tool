@@ -34,10 +34,23 @@ BEGIN
 		SET RUN = '';
 	END IF;
 	
-	SET @SqlCmd=CONCAT('SELECT att_value INTO @ZOOM_LEVEL FROM ',GT_DB,RUN,'.sys_config WHERE group_name=''system'' AND att_name = ''MapResolution'';');
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @SYS_CONFIG_TILE FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
+		
+	IF gt_covmo_csv_count(@SYS_CONFIG_TILE,',') =3 THEN
+		
+		SET @SqlCmd=CONCAT('SELECT gt_covmo_csv_get(att_value,3) INTO @ZOOM_LEVEL FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	ELSE 
+		SET @SqlCmd=CONCAT('SELECT att_value INTO @ZOOM_LEVEL FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	END IF;
 	
 	SET @SqlCmd=CONCAT('ALTER TABLE ',GT_DB,RUN,'.table_tile_fp_gsm TRUNCATE PARTITION h',PARTITION_ID,';');
 	PREPARE Stmt FROM @SqlCmd;
@@ -63,7 +76,7 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','CREATE temp TABLE tmp_table_tile_fp_gsm ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','Create temp table tmp_table_tile_fp_gsm ', NOW());
 	
 	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE  IF EXISTS ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,';');
 	PREPARE stmt FROM @sqlcmd;
@@ -76,7 +89,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','INSERT INTO tmp_table_tile_fp_gsm ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','Insert into tmp_table_tile_fp_gsm ', NOW());
 	
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,'
 				(
@@ -119,7 +132,12 @@ BEGIN
 				INTERFERED_CNT,
 				MS_POWER_SUM,
 				MS_POWER_CNT,
-				TOTAL_SERVING_CNT
+				TOTAL_SERVING_CNT,
+				DURATION,
+				INTER_CELL_HO_CNT,
+				INTER_CELL_HO_FAIL_CNT,
+				INTRA_CELL_HO_CNT,
+				INTRA_CELL_HO_FAIL_CNT
 				)
 			SELECT
 				DATA_DATE
@@ -162,6 +180,11 @@ BEGIN
 				,IFNULL(SUM(MS_POWER_SUM),0) AS MS_POWER_SUM
 				,IFNULL(SUM(MS_POWER_CNT),0) AS MS_POWER_CNT
 				,IFNULL(SUM(TOTAL_SERVING_CNT),0) AS TOTAL_SERVING_CNT
+				,IFNULL(SUM(DURATION),0) AS DURATION
+				,IFNULL(SUM(INTER_CELL_HO_CNT),0) AS INTER_CELL_HO_CNT
+				,IFNULL(SUM(INTER_CELL_HO_FAIL_CNT),0) AS INTER_CELL_HO_FAIL_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_CNT),0) AS INTRA_CELL_HO_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_FAIL_CNT),0) AS INTRA_CELL_HO_FAIL_CNT
 			FROM ',GT_DB,RUN,'.table_tile_fp_gsm_update
 			WHERE DATA_HOUR >= ',STARTHOUR,' AND DATA_HOUR < ',ENDHOUR,'
 			GROUP BY  
@@ -179,9 +202,29 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','UPDATE CELL_LON, CELL_LAT, CELL_NAME IN table_tile_fp_gsm ', NOW());
+	SET @SqlCmd=CONCAT('CREATE INDEX IX_KEY ON ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,' (BSC_ID,CELL_ID);');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE  IF EXISTS ',GT_DB,RUN,'.tmp_nt_',WORKER_ID,';');
+	PREPARE stmt FROM @sqlcmd;
+	EXECUTE stmt;
+	DEALLOCATE PREPARE stmt;
+	
+	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,RUN,'.tmp_nt_',WORKER_ID,' 
+			SELECT BSC_ID,CELL_ID,CLUSTER_ID,CELL_NAME,LATITUDE,LONGITUDE FROM ',CURRENT_NT_DB,'.nt_cell_current_gsm;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	
+	SET @SqlCmd=CONCAT('CREATE INDEX IX_KEY ON ',GT_DB,RUN,'.tmp_nt_',WORKER_ID,'  (BSC_ID,CELL_ID);');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','Update CELL_LON, CELL_LAT, CELL_NAME in table_tile_fp_gsm ', NOW());
 	SET @SqlCmd=CONCAT(' UPDATE ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,' A, 
-				    ',CURRENT_NT_DB,'.nt_cell_current_gsm B
+				    ',GT_DB,RUN,'.tmp_nt_',WORKER_ID,'  B
 			     SET A.CELL_LON=B.LONGITUDE
 				,A.CELL_LAT=B.LATITUDE
 				,A.CELL_NAME=B.CELL_NAME
@@ -192,7 +235,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 		
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','INSERT INTO table_tile_fp_gsm ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','Insert into table_tile_fp_gsm ', NOW());
 	
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.table_tile_fp_gsm
 				(
@@ -235,7 +278,12 @@ BEGIN
 				INTERFERED_CNT,
 				MS_POWER_SUM,
 				MS_POWER_CNT,
-				TOTAL_SERVING_CNT
+				TOTAL_SERVING_CNT,
+				DURATION,
+				INTER_CELL_HO_CNT,
+				INTER_CELL_HO_FAIL_CNT,
+				INTRA_CELL_HO_CNT,
+				INTRA_CELL_HO_FAIL_CNT
 				)
 			SELECT 
 				DATA_DATE,
@@ -277,13 +325,18 @@ BEGIN
 				INTERFERED_CNT,
 				MS_POWER_SUM,
 				MS_POWER_CNT,
-				TOTAL_SERVING_CNT
+				TOTAL_SERVING_CNT,
+				DURATION,
+				INTER_CELL_HO_CNT,
+				INTER_CELL_HO_FAIL_CNT,
+				INTRA_CELL_HO_CNT,
+				INTRA_CELL_HO_FAIL_CNT
 			FROM ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','INSERT INTO table_tile_fp_gsm_t ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','Insert into table_tile_fp_gsm_t ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.table_tile_fp_gsm_t
 				(
 				DATA_DATE,
@@ -314,7 +367,12 @@ BEGIN
 				INTERFERED_CNT,
 				MS_POWER_SUM,
 				MS_POWER_CNT,
-				TOTAL_SERVING_CNT
+				TOTAL_SERVING_CNT,
+				DURATION,
+				INTER_CELL_HO_CNT,
+				INTER_CELL_HO_FAIL_CNT,
+				INTRA_CELL_HO_CNT,
+				INTRA_CELL_HO_FAIL_CNT
 				)
 			    SELECT
 				DATA_DATE
@@ -346,6 +404,11 @@ BEGIN
 				,IFNULL(SUM(MS_POWER_SUM),0) AS MS_POWER_SUM
 				,IFNULL(SUM(MS_POWER_CNT),0) AS MS_POWER_CNT
 				,IFNULL(SUM(TOTAL_SERVING_CNT),0) AS TOTAL_SERVING_CNT
+				,IFNULL(SUM(DURATION),0) AS DURATION
+				,IFNULL(SUM(INTER_CELL_HO_CNT),0) AS INTER_CELL_HO_CNT
+				,IFNULL(SUM(INTER_CELL_HO_FAIL_CNT),0) AS INTER_CELL_HO_FAIL_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_CNT),0) AS INTRA_CELL_HO_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_FAIL_CNT),0) AS INTRA_CELL_HO_FAIL_CNT
 			FROM ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,'
 			GROUP BY   
 				DATA_DATE
@@ -360,7 +423,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','INSERT INTO table_tile_fp_gsm_c ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','Insert into table_tile_fp_gsm_c ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.table_tile_fp_gsm_c
 				(
 				DATA_DATE,
@@ -401,7 +464,12 @@ BEGIN
 				INTERFERED_CNT,
 				MS_POWER_SUM,
 				MS_POWER_CNT,
-				TOTAL_SERVING_CNT
+				TOTAL_SERVING_CNT,
+				DURATION,
+				INTER_CELL_HO_CNT,
+				INTER_CELL_HO_FAIL_CNT,
+				INTRA_CELL_HO_CNT,
+				INTRA_CELL_HO_FAIL_CNT
 				)
 			    SELECT
 				DATA_DATE
@@ -443,6 +511,11 @@ BEGIN
 				,IFNULL(SUM(MS_POWER_SUM),0) AS MS_POWER_SUM
 				,IFNULL(SUM(MS_POWER_CNT),0) AS MS_POWER_CNT
 				,IFNULL(SUM(TOTAL_SERVING_CNT),0) AS TOTAL_SERVING_CNT
+				,IFNULL(SUM(DURATION),0) AS DURATION
+				,IFNULL(SUM(INTER_CELL_HO_CNT),0) AS INTER_CELL_HO_CNT
+				,IFNULL(SUM(INTER_CELL_HO_FAIL_CNT),0) AS INTER_CELL_HO_FAIL_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_CNT),0) AS INTRA_CELL_HO_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_FAIL_CNT),0) AS INTRA_CELL_HO_FAIL_CNT
 			FROM ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,'
 			GROUP BY   
 				DATA_DATE
@@ -458,7 +531,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','INSERT INTO table_tile_fp_gsm_t_def ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','Insert into table_tile_fp_gsm_t_def ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.table_tile_fp_gsm_t_def
 				(
 				DATA_DATE,
@@ -485,7 +558,12 @@ BEGIN
 				INTERFERED_CNT,
 				MS_POWER_SUM,
 				MS_POWER_CNT,
-				TOTAL_SERVING_CNT
+				TOTAL_SERVING_CNT,
+				DURATION,
+				INTER_CELL_HO_CNT,
+				INTER_CELL_HO_FAIL_CNT,
+				INTRA_CELL_HO_CNT,
+				INTRA_CELL_HO_FAIL_CNT
 				)
 			    SELECT
 				DATA_DATE
@@ -513,6 +591,11 @@ BEGIN
 				,IFNULL(SUM(MS_POWER_SUM),0) AS MS_POWER_SUM
 				,IFNULL(SUM(MS_POWER_CNT),0) AS MS_POWER_CNT
 				,IFNULL(SUM(TOTAL_SERVING_CNT),0) AS TOTAL_SERVING_CNT
+				,IFNULL(SUM(DURATION),0) AS DURATION
+				,IFNULL(SUM(INTER_CELL_HO_CNT),0) AS INTER_CELL_HO_CNT
+				,IFNULL(SUM(INTER_CELL_HO_FAIL_CNT),0) AS INTER_CELL_HO_FAIL_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_CNT),0) AS INTRA_CELL_HO_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_FAIL_CNT),0) AS INTRA_CELL_HO_FAIL_CNT
 			FROM ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,'
 			GROUP BY   
 				DATA_DATE
@@ -523,7 +606,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','INSERT INTO table_tile_fp_gsm_c_def ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','Insert into table_tile_fp_gsm_c_def ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.table_tile_fp_gsm_c_def
 				(
 				DATA_DATE,
@@ -532,6 +615,7 @@ BEGIN
 				CELL_ID,
 				CELL_LON,
 				CELL_LAT,
+				CELL_NAME,
 				FP_RxLev_BEST_SUM,
 				FP_RxQual_BEST_SUM,
 				FP_RxLev_BEST_MED_AVG,
@@ -553,7 +637,12 @@ BEGIN
 				INTERFERED_CNT,
 				MS_POWER_SUM,
 				MS_POWER_CNT,
-				TOTAL_SERVING_CNT
+				TOTAL_SERVING_CNT,
+				DURATION,
+				INTER_CELL_HO_CNT,
+				INTER_CELL_HO_FAIL_CNT,
+				INTRA_CELL_HO_CNT,
+				INTRA_CELL_HO_FAIL_CNT
 				)
 			    SELECT
 				DATA_DATE
@@ -562,6 +651,7 @@ BEGIN
 				,CELL_ID
 				,CELL_LON
 				,CELL_LAT
+				,CELL_NAME
 				,IFNULL(SUM(FP_RxLev_BEST_SUM),0) AS FP_RxLev_BEST_SUM
 				,IFNULL(SUM(FP_RxQual_BEST_SUM),0) AS FP_RxQual_BEST_SUM
 				,IFNULL(AVG(FP_RxLev_BEST_MED_AVG),0) AS FP_RxLev_BEST_MED_AVG
@@ -584,6 +674,11 @@ BEGIN
 				,IFNULL(SUM(MS_POWER_SUM),0) AS MS_POWER_SUM
 				,IFNULL(SUM(MS_POWER_CNT),0) AS MS_POWER_CNT
 				,IFNULL(SUM(TOTAL_SERVING_CNT),0) AS TOTAL_SERVING_CNT
+				,IFNULL(SUM(DURATION),0) AS DURATION
+				,IFNULL(SUM(INTER_CELL_HO_CNT),0) AS INTER_CELL_HO_CNT
+				,IFNULL(SUM(INTER_CELL_HO_FAIL_CNT),0) AS INTER_CELL_HO_FAIL_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_CNT),0) AS INTRA_CELL_HO_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_FAIL_CNT),0) AS INTRA_CELL_HO_FAIL_CNT
 			FROM ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,'
 			GROUP BY   
 				DATA_DATE
@@ -594,7 +689,7 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','INSERT INTO table_tile_fp_gsm_dy ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','Insert into table_tile_fp_gsm_dy ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.table_tile_fp_gsm_dy
 				(
 				DATA_DATE,
@@ -635,7 +730,12 @@ BEGIN
 				INTERFERED_CNT,
 				MS_POWER_SUM,
 				MS_POWER_CNT,
-				TOTAL_SERVING_CNT
+				TOTAL_SERVING_CNT,
+				DURATION,
+				INTER_CELL_HO_CNT,
+				INTER_CELL_HO_FAIL_CNT,
+				INTRA_CELL_HO_CNT,
+				INTRA_CELL_HO_FAIL_CNT
 				)
 		 	SELECT
 				DATA_DATE
@@ -655,28 +755,33 @@ BEGIN
 				,CELL_LAT
 				,BCCH_ARFCN
 				,CELL_NAME
-				,IFNULL(SUM(FP_RxLev_BEST_SUM),0) AS FP_RxLev_BEST_SUM
-				,IFNULL(SUM(FP_RxQual_BEST_SUM),0) AS FP_RxQual_BEST_SUM
-				,IFNULL(AVG(FP_RxLev_BEST_MED_AVG),0) AS FP_RxLev_BEST_MED_AVG
-				,IFNULL(AVG(FP_RxQual_BEST_MED_AVG),0) AS FP_RxQual_BEST_MED_AVG
-				,IFNULL(SUM(FP_RxLev_ALL_SUM),0) AS FP_RxLev_ALL_SUM
-				,IFNULL(SUM(FP_RxQual_ALL_SUM),0) AS FP_RxQual_ALL_SUM
-				,IFNULL(AVG(FP_RxLev_ALL_MED_AVG),0) AS FP_RxLev_ALL_MED_AVG
-				,IFNULL(AVG(FP_RxQual_ALL_MED_AVG),0) AS FP_RxQual_ALL_MED_AVG
-				,IFNULL(SUM(MMR_CNT),0) AS MMR_CNT
-				,IFNULL(SUM(BEST_CNT),0) AS BEST_CNT
-				,IFNULL(SUM(BEST_SERVING_CNT),0) AS BEST_SERVING_CNT
-				,IFNULL(SUM(SERVING_CNT),0) AS SERVING_CNT
-				,IFNULL(SUM(RXLEV_GAP_SUM),0) AS RXLEV_GAP_SUM
-				,IFNULL(SUM(RXLEV_GAP_CNT),0) AS RXLEV_GAP_CNT
-				,IFNULL(SUM(SERVING_RXLEV_BETTER_GAP_SUM),0) AS SERVING_RXLEV_BETTER_GAP_SUM
-				,IFNULL(SUM(SERVING_RXLEV_BETTER_GAP_CNT),0) AS SERVING_RXLEV_BETTER_GAP_CNT
-				,IFNULL(SUM(SERVING_RXLEV_WORSE_GAP_SUM),0) AS SERVING_RXLEV_WORSE_GAP_SUM
-				,IFNULL(SUM(SERVING_RXLEV_WORSE_GAP_CNT),0) AS SERVING_RXLEV_WORSE_GAP_CNT
-				,IFNULL(SUM(INTERFERED_CNT),0) AS INTERFERED_CNT
-				,IFNULL(SUM(MS_POWER_SUM),0) AS MS_POWER_SUM
-				,IFNULL(SUM(MS_POWER_CNT),0) AS MS_POWER_CNT
-				,IFNULL(SUM(TOTAL_SERVING_CNT),0) AS TOTAL_SERVING_CNT
+				,IFNULL(FP_RxLev_BEST_SUM,0) AS FP_RxLev_BEST_SUM
+				,IFNULL(FP_RxQual_BEST_SUM,0) AS FP_RxQual_BEST_SUM
+				,IFNULL(FP_RxLev_BEST_MED_AVG,0) AS FP_RxLev_BEST_MED_AVG
+				,IFNULL(FP_RxQual_BEST_MED_AVG,0) AS FP_RxQual_BEST_MED_AVG
+				,IFNULL(FP_RxLev_ALL_SUM,0) AS FP_RxLev_ALL_SUM
+				,IFNULL(FP_RxQual_ALL_SUM,0) AS FP_RxQual_ALL_SUM
+				,IFNULL(FP_RxLev_ALL_MED_AVG,0) AS FP_RxLev_ALL_MED_AVG
+				,IFNULL(FP_RxQual_ALL_MED_AVG,0) AS FP_RxQual_ALL_MED_AVG
+				,IFNULL(MMR_CNT,0) AS MMR_CNT
+				,IFNULL(BEST_CNT,0) AS BEST_CNT
+				,IFNULL(BEST_SERVING_CNT,0) AS BEST_SERVING_CNT
+				,IFNULL(SERVING_CNT,0) AS SERVING_CNT
+				,IFNULL(RXLEV_GAP_SUM,0) AS RXLEV_GAP_SUM
+				,IFNULL(RXLEV_GAP_CNT,0) AS RXLEV_GAP_CNT
+				,IFNULL(SERVING_RXLEV_BETTER_GAP_SUM,0) AS SERVING_RXLEV_BETTER_GAP_SUM
+				,IFNULL(SERVING_RXLEV_BETTER_GAP_CNT,0) AS SERVING_RXLEV_BETTER_GAP_CNT
+				,IFNULL(SERVING_RXLEV_WORSE_GAP_SUM,0) AS SERVING_RXLEV_WORSE_GAP_SUM
+				,IFNULL(SERVING_RXLEV_WORSE_GAP_CNT,0) AS SERVING_RXLEV_WORSE_GAP_CNT
+				,IFNULL(INTERFERED_CNT,0) AS INTERFERED_CNT
+				,IFNULL(MS_POWER_SUM,0) AS MS_POWER_SUM
+				,IFNULL(MS_POWER_CNT,0) AS MS_POWER_CNT
+				,IFNULL(TOTAL_SERVING_CNT,0) AS TOTAL_SERVING_CNT
+				,IFNULL(DURATION,0) AS DURATION
+				,IFNULL(INTER_CELL_HO_CNT,0) AS INTER_CELL_HO_CNT
+				,IFNULL(INTER_CELL_HO_FAIL_CNT,0) AS INTER_CELL_HO_FAIL_CNT
+				,IFNULL(INTRA_CELL_HO_CNT,0) AS INTRA_CELL_HO_CNT
+				,IFNULL(INTRA_CELL_HO_FAIL_CNT,0) AS INTRA_CELL_HO_FAIL_CNT
 			FROM ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,'
 -- 			GROUP BY 
 -- 				DATA_DATE
@@ -709,13 +814,18 @@ BEGIN
 				',GT_DB,'.table_tile_fp_gsm_dy.INTERFERED_CNT=',GT_DB,'.table_tile_fp_gsm_dy.INTERFERED_CNT+VALUES(INTERFERED_CNT),
 				',GT_DB,'.table_tile_fp_gsm_dy.MS_POWER_SUM=',GT_DB,'.table_tile_fp_gsm_dy.MS_POWER_SUM+VALUES(MS_POWER_SUM),
 				',GT_DB,'.table_tile_fp_gsm_dy.MS_POWER_CNT=',GT_DB,'.table_tile_fp_gsm_dy.MS_POWER_CNT+VALUES(MS_POWER_CNT),
-				',GT_DB,'.table_tile_fp_gsm_dy.TOTAL_SERVING_CNT=',GT_DB,'.table_tile_fp_gsm_dy.TOTAL_SERVING_CNT+VALUES(TOTAL_SERVING_CNT)
+				',GT_DB,'.table_tile_fp_gsm_dy.TOTAL_SERVING_CNT=',GT_DB,'.table_tile_fp_gsm_dy.TOTAL_SERVING_CNT+VALUES(TOTAL_SERVING_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy.DURATION=',GT_DB,'.table_tile_fp_gsm_dy.DURATION+VALUES(DURATION),
+				',GT_DB,'.table_tile_fp_gsm_dy.INTER_CELL_HO_CNT=',GT_DB,'.table_tile_fp_gsm_dy.INTER_CELL_HO_CNT+VALUES(INTER_CELL_HO_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy.INTER_CELL_HO_FAIL_CNT=',GT_DB,'.table_tile_fp_gsm_dy.INTER_CELL_HO_FAIL_CNT+VALUES(INTER_CELL_HO_FAIL_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy.INTRA_CELL_HO_CNT=',GT_DB,'.table_tile_fp_gsm_dy.INTRA_CELL_HO_CNT+VALUES(INTRA_CELL_HO_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy.INTRA_CELL_HO_FAIL_CNT=',GT_DB,'.table_tile_fp_gsm_dy.INTRA_CELL_HO_FAIL_CNT+VALUES(INTRA_CELL_HO_FAIL_CNT)
 		;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','INSERT INTO table_tile_fp_gsm_dy_t ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','Insert into table_tile_fp_gsm_dy_t ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.table_tile_fp_gsm_dy_t
 				(
 				DATA_DATE,
@@ -745,7 +855,12 @@ BEGIN
 				INTERFERED_CNT,
 				MS_POWER_SUM,
 				MS_POWER_CNT,
-				TOTAL_SERVING_CNT
+				TOTAL_SERVING_CNT,
+				DURATION,
+				INTER_CELL_HO_CNT,
+				INTER_CELL_HO_FAIL_CNT,
+				INTRA_CELL_HO_CNT,
+				INTRA_CELL_HO_FAIL_CNT
 				)
 		 	SELECT
 				DATA_DATE
@@ -776,6 +891,11 @@ BEGIN
 				,IFNULL(SUM(MS_POWER_SUM),0) AS MS_POWER_SUM
 				,IFNULL(SUM(MS_POWER_CNT),0) AS MS_POWER_CNT
 				,IFNULL(SUM(TOTAL_SERVING_CNT),0) AS TOTAL_SERVING_CNT
+				,IFNULL(SUM(DURATION),0) AS DURATION
+				,IFNULL(SUM(INTER_CELL_HO_CNT),0) AS INTER_CELL_HO_CNT
+				,IFNULL(SUM(INTER_CELL_HO_FAIL_CNT),0) AS INTER_CELL_HO_FAIL_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_CNT),0) AS INTRA_CELL_HO_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_FAIL_CNT),0) AS INTRA_CELL_HO_FAIL_CNT
 			FROM ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,'
 			GROUP BY 
 				DATA_DATE
@@ -784,6 +904,7 @@ BEGIN
 				,TILE_ID
 				,CALL_TYPE
 				,CALL_STATUS
+			ORDER BY NULL
 			ON DUPLICATE KEY UPDATE
 				',GT_DB,'.table_tile_fp_gsm_dy_t.FP_RxLev_BEST_SUM=',GT_DB,'.table_tile_fp_gsm_dy_t.FP_RxLev_BEST_SUM+VALUES(FP_RxLev_BEST_SUM),
 				',GT_DB,'.table_tile_fp_gsm_dy_t.FP_RxQual_BEST_SUM=',GT_DB,'.table_tile_fp_gsm_dy_t.FP_RxQual_BEST_SUM+VALUES(FP_RxQual_BEST_SUM),
@@ -806,12 +927,17 @@ BEGIN
 				',GT_DB,'.table_tile_fp_gsm_dy_t.INTERFERED_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t.INTERFERED_CNT+VALUES(INTERFERED_CNT),
 				',GT_DB,'.table_tile_fp_gsm_dy_t.MS_POWER_SUM=',GT_DB,'.table_tile_fp_gsm_dy_t.MS_POWER_SUM+VALUES(MS_POWER_SUM),
 				',GT_DB,'.table_tile_fp_gsm_dy_t.MS_POWER_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t.MS_POWER_CNT+VALUES(MS_POWER_CNT),
-				',GT_DB,'.table_tile_fp_gsm_dy_t.TOTAL_SERVING_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t.TOTAL_SERVING_CNT+VALUES(TOTAL_SERVING_CNT)
+				',GT_DB,'.table_tile_fp_gsm_dy_t.TOTAL_SERVING_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t.TOTAL_SERVING_CNT+VALUES(TOTAL_SERVING_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_t.DURATION=',GT_DB,'.table_tile_fp_gsm_dy_t.DURATION+VALUES(DURATION),
+				',GT_DB,'.table_tile_fp_gsm_dy_t.INTER_CELL_HO_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t.INTER_CELL_HO_CNT+VALUES(INTER_CELL_HO_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_t.INTER_CELL_HO_FAIL_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t.INTER_CELL_HO_FAIL_CNT+VALUES(INTER_CELL_HO_FAIL_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_t.INTRA_CELL_HO_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t.INTRA_CELL_HO_CNT+VALUES(INTRA_CELL_HO_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_t.INTRA_CELL_HO_FAIL_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t.INTRA_CELL_HO_FAIL_CNT+VALUES(INTRA_CELL_HO_FAIL_CNT)
 		;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','INSERT INTO table_tile_fp_gsm_dy_c ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','Insert into table_tile_fp_gsm_dy_c ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.table_tile_fp_gsm_dy_c
 		(
 				DATA_DATE,
@@ -851,7 +977,12 @@ BEGIN
 				INTERFERED_CNT,
 				MS_POWER_SUM,
 				MS_POWER_CNT,
-				TOTAL_SERVING_CNT
+				TOTAL_SERVING_CNT,
+				DURATION,
+				INTER_CELL_HO_CNT,
+				INTER_CELL_HO_FAIL_CNT,
+				INTRA_CELL_HO_CNT,
+				INTRA_CELL_HO_FAIL_CNT
 		)
 		 	SELECT
 				DATA_DATE
@@ -892,6 +1023,11 @@ BEGIN
 				,IFNULL(SUM(MS_POWER_SUM),0) AS MS_POWER_SUM
 				,IFNULL(SUM(MS_POWER_CNT),0) AS MS_POWER_CNT
 				,IFNULL(SUM(TOTAL_SERVING_CNT),0) AS TOTAL_SERVING_CNT
+				,IFNULL(SUM(DURATION),0) AS DURATION
+				,IFNULL(SUM(INTER_CELL_HO_CNT),0) AS INTER_CELL_HO_CNT
+				,IFNULL(SUM(INTER_CELL_HO_FAIL_CNT),0) AS INTER_CELL_HO_FAIL_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_CNT),0) AS INTRA_CELL_HO_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_FAIL_CNT),0) AS INTRA_CELL_HO_FAIL_CNT
 			FROM ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,'
 			GROUP BY
 				DATA_DATE
@@ -901,6 +1037,7 @@ BEGIN
 				,CELL_ID
 				,CALL_TYPE
 				,CALL_STATUS
+			ORDER BY NULL
 			ON DUPLICATE KEY UPDATE
 				',GT_DB,'.table_tile_fp_gsm_dy_c.FP_RxLev_BEST_SUM=',GT_DB,'.table_tile_fp_gsm_dy_c.FP_RxLev_BEST_SUM+VALUES(FP_RxLev_BEST_SUM),
 				',GT_DB,'.table_tile_fp_gsm_dy_c.FP_RxQual_BEST_SUM=',GT_DB,'.table_tile_fp_gsm_dy_c.FP_RxQual_BEST_SUM+VALUES(FP_RxQual_BEST_SUM),
@@ -923,13 +1060,18 @@ BEGIN
 				',GT_DB,'.table_tile_fp_gsm_dy_c.INTERFERED_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c.INTERFERED_CNT+VALUES(INTERFERED_CNT),
 				',GT_DB,'.table_tile_fp_gsm_dy_c.MS_POWER_SUM=',GT_DB,'.table_tile_fp_gsm_dy_c.MS_POWER_SUM+VALUES(MS_POWER_SUM),
 				',GT_DB,'.table_tile_fp_gsm_dy_c.MS_POWER_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c.MS_POWER_CNT+VALUES(MS_POWER_CNT),
-				',GT_DB,'.table_tile_fp_gsm_dy_c.TOTAL_SERVING_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c.TOTAL_SERVING_CNT+VALUES(TOTAL_SERVING_CNT)
+				',GT_DB,'.table_tile_fp_gsm_dy_c.TOTAL_SERVING_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c.TOTAL_SERVING_CNT+VALUES(TOTAL_SERVING_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_c.DURATION=',GT_DB,'.table_tile_fp_gsm_dy_c.DURATION+VALUES(DURATION),
+				',GT_DB,'.table_tile_fp_gsm_dy_c.INTER_CELL_HO_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c.INTER_CELL_HO_CNT+VALUES(INTER_CELL_HO_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_c.INTER_CELL_HO_FAIL_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c.INTER_CELL_HO_FAIL_CNT+VALUES(INTER_CELL_HO_FAIL_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_c.INTRA_CELL_HO_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c.INTRA_CELL_HO_CNT+VALUES(INTRA_CELL_HO_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_c.INTRA_CELL_HO_FAIL_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c.INTRA_CELL_HO_FAIL_CNT+VALUES(INTRA_CELL_HO_FAIL_CNT)
 		;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','INSERT INTO table_tile_fp_gsm_dy_t_def ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','Insert into table_tile_fp_gsm_dy_t_def ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.table_tile_fp_gsm_dy_t_def
 		(
 				DATA_DATE,
@@ -955,7 +1097,12 @@ BEGIN
 				INTERFERED_CNT,
 				MS_POWER_SUM,
 				MS_POWER_CNT,
-				TOTAL_SERVING_CNT
+				TOTAL_SERVING_CNT,
+				DURATION,
+				INTER_CELL_HO_CNT,
+				INTER_CELL_HO_FAIL_CNT,
+				INTRA_CELL_HO_CNT,
+				INTRA_CELL_HO_FAIL_CNT
 		)
 		 	SELECT
 				DATA_DATE
@@ -982,10 +1129,16 @@ BEGIN
 				,IFNULL(SUM(MS_POWER_SUM),0) AS MS_POWER_SUM
 				,IFNULL(SUM(MS_POWER_CNT),0) AS MS_POWER_CNT
 				,IFNULL(SUM(TOTAL_SERVING_CNT),0) AS TOTAL_SERVING_CNT
+				,IFNULL(SUM(DURATION),0) AS DURATION
+				,IFNULL(SUM(INTER_CELL_HO_CNT),0) AS INTER_CELL_HO_CNT
+				,IFNULL(SUM(INTER_CELL_HO_FAIL_CNT),0) AS INTER_CELL_HO_FAIL_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_CNT),0) AS INTRA_CELL_HO_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_FAIL_CNT),0) AS INTRA_CELL_HO_FAIL_CNT
 			FROM ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,'
 			GROUP BY 
 				DATA_DATE
 				, TILE_ID
+			ORDER BY NULL
 			ON DUPLICATE KEY UPDATE
 				',GT_DB,'.table_tile_fp_gsm_dy_t_def.FP_RxLev_BEST_SUM=',GT_DB,'.table_tile_fp_gsm_dy_t_def.FP_RxLev_BEST_SUM+VALUES(FP_RxLev_BEST_SUM),
 				',GT_DB,'.table_tile_fp_gsm_dy_t_def.FP_RxQual_BEST_SUM=',GT_DB,'.table_tile_fp_gsm_dy_t_def.FP_RxQual_BEST_SUM+VALUES(FP_RxQual_BEST_SUM),
@@ -1008,13 +1161,18 @@ BEGIN
 				',GT_DB,'.table_tile_fp_gsm_dy_t_def.INTERFERED_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t_def.INTERFERED_CNT+VALUES(INTERFERED_CNT),
 				',GT_DB,'.table_tile_fp_gsm_dy_t_def.MS_POWER_SUM=',GT_DB,'.table_tile_fp_gsm_dy_t_def.MS_POWER_SUM+VALUES(MS_POWER_SUM),
 				',GT_DB,'.table_tile_fp_gsm_dy_t_def.MS_POWER_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t_def.MS_POWER_CNT+VALUES(MS_POWER_CNT),
-				',GT_DB,'.table_tile_fp_gsm_dy_t_def.TOTAL_SERVING_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t_def.TOTAL_SERVING_CNT+VALUES(TOTAL_SERVING_CNT)
+				',GT_DB,'.table_tile_fp_gsm_dy_t_def.TOTAL_SERVING_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t_def.TOTAL_SERVING_CNT+VALUES(TOTAL_SERVING_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_t_def.DURATION=',GT_DB,'.table_tile_fp_gsm_dy_t_def.DURATION+VALUES(DURATION),
+				',GT_DB,'.table_tile_fp_gsm_dy_t_def.INTER_CELL_HO_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t_def.INTER_CELL_HO_CNT+VALUES(INTER_CELL_HO_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_t_def.INTER_CELL_HO_FAIL_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t_def.INTER_CELL_HO_FAIL_CNT+VALUES(INTER_CELL_HO_FAIL_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_t_def.INTRA_CELL_HO_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t_def.INTRA_CELL_HO_CNT+VALUES(INTRA_CELL_HO_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_t_def.INTRA_CELL_HO_FAIL_CNT=',GT_DB,'.table_tile_fp_gsm_dy_t_def.INTRA_CELL_HO_FAIL_CNT+VALUES(INTRA_CELL_HO_FAIL_CNT)
 		;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','INSERT INTO table_tile_fp_gsm_dy_c_def ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_FP_GSM','Insert into table_tile_fp_gsm_dy_c_def ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.table_tile_fp_gsm_dy_c_def
 		(
 				DATA_DATE,
@@ -1022,6 +1180,7 @@ BEGIN
 				CELL_ID,
 				CELL_LON,
 				CELL_LAT,
+				CELL_NAME,
 				FP_RxLev_BEST_SUM,
 				FP_RxQual_BEST_SUM,
 				FP_RxLev_BEST_MED_AVG,
@@ -1043,7 +1202,12 @@ BEGIN
 				INTERFERED_CNT,
 				MS_POWER_SUM,
 				MS_POWER_CNT,
-				TOTAL_SERVING_CNT
+				TOTAL_SERVING_CNT,
+				DURATION,
+				INTER_CELL_HO_CNT,
+				INTER_CELL_HO_FAIL_CNT,
+				INTRA_CELL_HO_CNT,
+				INTRA_CELL_HO_FAIL_CNT
 		)
 		 	SELECT
 				DATA_DATE
@@ -1051,6 +1215,7 @@ BEGIN
 				,CELL_ID
 				,CELL_LON
 				,CELL_LAT
+				,CELL_NAME
 				,IFNULL(SUM(FP_RxLev_BEST_SUM),0) AS FP_RxLev_BEST_SUM
 				,IFNULL(SUM(FP_RxQual_BEST_SUM),0) AS FP_RxQual_BEST_SUM
 				,IFNULL(AVG(FP_RxLev_BEST_MED_AVG),0) AS FP_RxLev_BEST_MED_AVG
@@ -1073,11 +1238,17 @@ BEGIN
 				,IFNULL(SUM(MS_POWER_SUM),0) AS MS_POWER_SUM
 				,IFNULL(SUM(MS_POWER_CNT),0) AS MS_POWER_CNT
 				,IFNULL(SUM(TOTAL_SERVING_CNT),0) AS TOTAL_SERVING_CNT
+				,IFNULL(SUM(DURATION),0) AS DURATION
+				,IFNULL(SUM(INTER_CELL_HO_CNT),0) AS INTER_CELL_HO_CNT
+				,IFNULL(SUM(INTER_CELL_HO_FAIL_CNT),0) AS INTER_CELL_HO_FAIL_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_CNT),0) AS INTRA_CELL_HO_CNT
+				,IFNULL(SUM(INTRA_CELL_HO_FAIL_CNT),0) AS INTRA_CELL_HO_FAIL_CNT
 			FROM ',GT_DB,RUN,'.tmp_table_tile_fp_gsm_',WORKER_ID,'
 			GROUP BY 
 				DATA_DATE
 				,BSC_ID
 				,CELL_ID
+			ORDER BY NULL
 			ON DUPLICATE KEY UPDATE
 				',GT_DB,'.table_tile_fp_gsm_dy_c_def.FP_RxLev_BEST_SUM=',GT_DB,'.table_tile_fp_gsm_dy_c_def.FP_RxLev_BEST_SUM+VALUES(FP_RxLev_BEST_SUM),
 				',GT_DB,'.table_tile_fp_gsm_dy_c_def.FP_RxQual_BEST_SUM=',GT_DB,'.table_tile_fp_gsm_dy_c_def.FP_RxQual_BEST_SUM+VALUES(FP_RxQual_BEST_SUM),
@@ -1100,7 +1271,12 @@ BEGIN
 				',GT_DB,'.table_tile_fp_gsm_dy_c_def.INTERFERED_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c_def.INTERFERED_CNT+VALUES(INTERFERED_CNT)	,
 				',GT_DB,'.table_tile_fp_gsm_dy_c_def.MS_POWER_SUM=',GT_DB,'.table_tile_fp_gsm_dy_c_def.MS_POWER_SUM+VALUES(MS_POWER_SUM),
 				',GT_DB,'.table_tile_fp_gsm_dy_c_def.MS_POWER_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c_def.MS_POWER_CNT+VALUES(MS_POWER_CNT),
-				',GT_DB,'.table_tile_fp_gsm_dy_c_def.TOTAL_SERVING_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c_def.TOTAL_SERVING_CNT+VALUES(TOTAL_SERVING_CNT)
+				',GT_DB,'.table_tile_fp_gsm_dy_c_def.TOTAL_SERVING_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c_def.TOTAL_SERVING_CNT+VALUES(TOTAL_SERVING_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_c_def.DURATION=',GT_DB,'.table_tile_fp_gsm_dy_c_def.DURATION+VALUES(DURATION),
+				',GT_DB,'.table_tile_fp_gsm_dy_c_def.INTER_CELL_HO_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c_def.INTER_CELL_HO_CNT+VALUES(INTER_CELL_HO_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_c_def.INTER_CELL_HO_FAIL_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c_def.INTER_CELL_HO_FAIL_CNT+VALUES(INTER_CELL_HO_FAIL_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_c_def.INTRA_CELL_HO_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c_def.INTRA_CELL_HO_CNT+VALUES(INTRA_CELL_HO_CNT),
+				',GT_DB,'.table_tile_fp_gsm_dy_c_def.INTRA_CELL_HO_FAIL_CNT=',GT_DB,'.table_tile_fp_gsm_dy_c_def.INTRA_CELL_HO_FAIL_CNT+VALUES(INTRA_CELL_HO_FAIL_CNT)
 		;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;

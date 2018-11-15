@@ -11,24 +11,25 @@ BEGIN
 	DECLARE DEN2 SMALLINT(6) DEFAULT 1201;
 	DECLARE DEN3 SMALLINT(6) DEFAULT 2401;
 	DECLARE DEN4 SMALLINT(6) DEFAULT 3601;
+	DECLARE CURRENT_NT_DB VARCHAR(50) DEFAULT CONCAT('gt_nt_',gt_strtok(GT_DB,3,'_'));
 	
   	INSERT INTO gt_gw_main.SP_LOG VALUES(GT_DB,'SP_Generate_NT_Sub_Density','nt_cell_current_lte', NOW());
-	SET @SqlCmd=CONCAT('SELECT att_value INTO @d1 FROM gt_covmo.sys_config WHERE group_name = ''NT'' AND att_name = ''Density_type_1'';');
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @d1 FROM ',CURRENT_NT_DB,'.sys_config WHERE group_name = ''NT'' AND att_name = ''Density_type_1'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt; 
 	
-	SET @SqlCmd=CONCAT('SELECT att_value INTO @d2 FROM gt_covmo.sys_config WHERE group_name = ''NT'' AND att_name = ''Density_type_2'';');
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @d2 FROM ',CURRENT_NT_DB,'.sys_config WHERE group_name = ''NT'' AND att_name = ''Density_type_2'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt; 
 	
-	SET @SqlCmd=CONCAT('SELECT att_value INTO @d3 FROM gt_covmo.sys_config WHERE group_name = ''NT'' AND att_name = ''Density_type_3'';');
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @d3 FROM ',CURRENT_NT_DB,'.sys_config WHERE group_name = ''NT'' AND att_name = ''Density_type_3'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt; 
 	
-	SET @SqlCmd=CONCAT('SELECT att_value INTO @d4 FROM gt_covmo.sys_config WHERE group_name = ''NT'' AND att_name = ''Density_type_4'';');
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @d4 FROM ',CURRENT_NT_DB,'.sys_config WHERE group_name = ''NT'' AND att_name = ''Density_type_4'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt; 

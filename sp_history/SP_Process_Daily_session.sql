@@ -11,10 +11,12 @@ BEGIN
 	DECLARE HUA_EXPORT_FLAG VARCHAR(10);
 	DECLARE CUSTOMER_USER_FLAG VARCHAR(50);
 	DECLARE RNC_ID INT; 
+	DECLARE IMSI_IMEI_DIFF_FLAG VARCHAR(10);
 	
 	SELECT gt_strtok(GT_DB,2,'_') INTO RNC_ID;
 	SELECT LOWER(`value`) INTO CUSTOMER_USER_FLAG  FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'special_imsi' ;
 	SELECT LOWER(`value`) INTO HUA_EXPORT_FLAG  FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'hua_export' ;
+	SELECT LOWER(`value`) INTO IMSI_IMEI_DIFF_FLAG  FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'imsi_imei_diff' ;
 	SELECT REPLACE(GT_DB,SH_EH,'0000_0000') INTO TO_GT_DB;
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(FROM_GT_DB,'SP_Process_Daily_session','START', NOW());
@@ -23,7 +25,12 @@ BEGIN
 	
 	CALL gt_gw_main.SP_Sub_Generate_LU_Reject(FROM_GT_DB,TO_GT_DB);
 	CALL gt_gw_main.SP_Insert_Into_Roamer(FROM_GT_DB,TO_GT_DB,'umts');
-	CALL gt_gw_main.SP_Generate_IMSI_PU(FROM_GT_DB,2);
+-- 	CALL gt_gw_main.SP_Generate_IMSI_PU(FROM_GT_DB,2);
+	IF IMSI_IMEI_DIFF_FLAG = 'true' THEN 
+		CALL gt_gw_main.`SP_Generate_IMSI_IMEI`(FROM_GT_DB,2);
+	ELSE
+		CALL gt_gw_main.SP_Generate_IMSI_PU(FROM_GT_DB,2);
+	END IF;	
 	INSERT INTO gt_gw_main.sp_log VALUES(FROM_GT_DB,'SP_Process_Daily_session','GW_IR', NOW());
 	SET GW_IP = CONCAT('http://',GW_IP,':8989');
 	UPDATE `gt_gw_main`.`session_information` SET `DATA_VENDOR` = VENDER_ID,`GW_IP` = GW_IP WHERE `SESSION_DB` = TO_GT_DB;	
@@ -61,8 +68,7 @@ BEGIN
 	SET @SqlCmd = CONCAT('SELECT GW_URI,AP_URI,DS_AP_URI INTO @RNC_TO_SEC_GW_URI,@RNC_TO_SEC_AP_URI,@RNC_TO_SEC_DS_AP_URI FROM gt_gw_main.rnc_information WHERE rnc=',RNC_ID,' and technology=''umts'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	
+	DEALLOCATE PREPARE Stmt;	
 	
 	SET @SqlCmd=CONCAT('INSERT INTO ',TO_GT_DB,'.session_information 
 					    (`SESSION_ID`,

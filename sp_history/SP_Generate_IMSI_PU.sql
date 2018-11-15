@@ -26,9 +26,8 @@ BEGIN
 	DEALLOCATE PREPARE Stmt;
 	
 	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_imsi_',PU_ID,'_',WORKER_ID,'
-				SELECT IMSI FROM ',GT_DB,'.table_call_imsi_',CASE TECH_MASK WHEN 1 THEN 'gsm' WHEN 2 THEN 'umts' WHEN 4 THEN 'lte' ELSE '' END,' 
-				WHERE `DATA_HOUR`=',SH_HOUR,' AND `BATCH`=',SH_BATCH,'  
-				GROUP BY IMSI;');
+				SELECT IMSI FROM ',GT_DB,'.',CASE TECH_MASK WHEN 1 THEN CONCAT('table_call_gsm_',gt_strtok(SH_EH,1,'_'))  WHEN 2 THEN CONCAT('table_call_',gt_strtok(SH_EH,1,'_')) WHEN 4 THEN CONCAT('table_call_lte_',gt_strtok(SH_EH,1,'_')) ELSE '' END,
+				' WHERE IMSI IS NOT NULL  GROUP BY IMSI;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;

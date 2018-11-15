@@ -30,7 +30,7 @@ BEGIN
 		DEALLOCATE PREPARE Stmt;
 		SELECT 'No Table' AS IsSuccess;	
 		
-		SELECT '{tech:â€ALL â€, name:â€SP-Reportâ€, status:â€2â€,message_id: â€œnullâ€, message: â€œSP_KPI_multi_split Failed Table does not exist. Check necessary table firstâ€, log_path: â€œâ€}' AS message;
+		SELECT '{tech:”ALL ”, name:”SP-Report”, status:”2”,message_id: “null”, message: “SP_KPI_multi_split Failed Table does not exist. Check necessary table first”, log_path: “”}' AS message;
 	END;		
 		
 	SET SESSION group_concat_max_len=@@max_allowed_packet;

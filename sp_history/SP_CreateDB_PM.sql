@@ -32,14 +32,15 @@ BEGIN
 		 PARTITION h22 VALUES IN (22) ENGINE = MYISAM,
 		 PARTITION h23 VALUES IN (23) ENGINE = MYISAM	
 		 );';
-		SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`table_pmnoloadsharingrrcconn` 
+		 
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`table_pmnoloadsharingrrcconn` 
 				(
-				  `neun` VARCHAR(100) DEFAULT NULL,
-				  `nedn` VARCHAR(100) DEFAULT NULL,
-				  `nesw` VARCHAR(100) DEFAULT NULL,
-				  `mts` VARCHAR(100) DEFAULT NULL,
-				  `gp` VARCHAR(100) DEFAULT NULL,
-				  `moid` VARCHAR(1000) DEFAULT NULL,
+				  `neun` VARCHAR(10) DEFAULT NULL,
+				  `nedn` VARCHAR(70) DEFAULT NULL,
+				  `nesw` VARCHAR(30) DEFAULT NULL,
+				  `mts` VARCHAR(30) DEFAULT NULL,
+				  `gp` VARCHAR(10) DEFAULT NULL,
+				  `moid` VARCHAR(70) DEFAULT NULL,
 				  `pmNoLoadSharingRrcConn` VARCHAR(100) DEFAULT NULL,
 				  `pmTotNoRrcConnectReq` VARCHAR(100) DEFAULT NULL,
 				  `pmTotNoRrcConnectReqSuccess` VARCHAR(100) DEFAULT NULL,
@@ -193,6 +194,9 @@ BEGIN
 				  `pmNoRabEstSuccessMultiAmrWb` VARCHAR(100) DEFAULT NULL,
 				  `pmNoRabEstAttemptMultiPsInt` VARCHAR(100) DEFAULT NULL,
 				  `pmNoRabEstSuccessMultiPsInt` VARCHAR(100) DEFAULT NULL,
+				  `pmCellDowntimeTps` VARCHAR(100) DEFAULT NULL, 
+				  `pmTpsLocks` VARCHAR(100) DEFAULT NULL,
+				  `pmTpsUnlocks` VARCHAR(100) DEFAULT NULL,
 				  `pmSamplesCs12RabEstablish` VARCHAR(100) DEFAULT NULL,
 				  `pmSumCs12RabEstablish` VARCHAR(100) DEFAULT NULL,
 				  `pmSamplesBestCs12Establish` VARCHAR(100) DEFAULT NULL,
@@ -234,14 +238,15 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt; 
+	
 	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`table_pmnotimesrldelfractset` 
 				(
-				  `neun` VARCHAR(100) DEFAULT NULL,
-				  `nedn` VARCHAR(100) DEFAULT NULL,
-				  `nesw` VARCHAR(100) DEFAULT NULL,
-				  `mts` VARCHAR(100) DEFAULT NULL,
-				  `gp` VARCHAR(100) DEFAULT NULL,
-				  `moid` VARCHAR(100) DEFAULT NULL,
+				  `neun` VARCHAR(10) DEFAULT NULL,
+				  `nedn` VARCHAR(70) DEFAULT NULL,
+				  `nesw` VARCHAR(30) DEFAULT NULL,
+				  `mts` VARCHAR(30) DEFAULT NULL,
+				  `gp` VARCHAR(10) DEFAULT NULL,
+				  `moid` VARCHAR(70) DEFAULT NULL,
 				  `pmNoTimesRlDelFrActSet` VARCHAR(100) DEFAULT NULL,
 				  `pmNoTimesRlAddToActSet` VARCHAR(100) DEFAULT NULL,
 				  `pmNoTimesRlRepInActSet` VARCHAR(100) DEFAULT NULL,
@@ -383,14 +388,15 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt; 
-		SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`table_pmnoattoutirathomulti` 
+	
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`table_pmnoattoutirathomulti` 
 				(
-				 `neun` VARCHAR(100) DEFAULT NULL,
-				  `nedn` VARCHAR(100) DEFAULT NULL,
-				  `nesw` VARCHAR(100) DEFAULT NULL,
-				  `mts` VARCHAR(100) DEFAULT NULL,
-				  `gp` VARCHAR(100) DEFAULT NULL,
-				  `moid` VARCHAR(100) DEFAULT NULL,
+				 `neun` VARCHAR(10) DEFAULT NULL,
+				  `nedn` VARCHAR(70) DEFAULT NULL,
+				  `nesw` VARCHAR(30) DEFAULT NULL,
+				  `mts` VARCHAR(30) DEFAULT NULL,
+				  `gp` VARCHAR(10) DEFAULT NULL,
+				  `moid` VARCHAR(70) DEFAULT NULL,
 				  `pmNoAttOutIratHoMulti` VARCHAR(100) DEFAULT NULL,
 				  `pmNoAttOutIratHoSpeech` VARCHAR(100) DEFAULT NULL,
 				  `pmNoAttOutIratHoStandalone` VARCHAR(100) DEFAULT NULL,
@@ -409,61 +415,145 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt; 
+	
 	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`table_pmcmattdlhls` 
 				(
-				  `neun` VARCHAR(100) DEFAULT NULL,
-				  `nedn` VARCHAR(100) DEFAULT NULL,
-				  `nesw` VARCHAR(100) DEFAULT NULL,
-				  `mts` VARCHAR(100) DEFAULT NULL,
-				  `gp` VARCHAR(100) DEFAULT NULL,
-				  `moid` VARCHAR(1000) DEFAULT NULL,
-				  `pmCmAttDlHls` VARCHAR(100) DEFAULT NULL,
-				  `pmCmAttDlSf2` VARCHAR(100) DEFAULT NULL,
-				  `pmCmAttUlHls` VARCHAR(100) DEFAULT NULL,
-				  `pmCmAttUlSf2` VARCHAR(100) DEFAULT NULL,
-				  `pmCmStop` VARCHAR(100) DEFAULT NULL,
-				  `pmCmSuccDlHls` VARCHAR(100) DEFAULT NULL,
-				  `pmCmSuccDlSf2` VARCHAR(100) DEFAULT NULL,
-				  `pmCmSuccUlHls` VARCHAR(100) DEFAULT NULL,
-				  `pmCmSuccUlSf2` VARCHAR(100) DEFAULT NULL,
-				  `pmInterFreqMeasCmStart` VARCHAR(100) DEFAULT NULL,
-				  `pmInterFreqMeasCmStop` VARCHAR(100) DEFAULT NULL,
-				  `pmInterFreqMeasNoCmStart` VARCHAR(100) DEFAULT NULL,
-				  `pmInterFreqMeasNoCmStop` VARCHAR(100) DEFAULT NULL,
-				  `pmIratHoGsmMeasCmStart` VARCHAR(100) DEFAULT NULL,
-				  `pmIratHoGsmMeasNoCmStart` VARCHAR(100) DEFAULT NULL,
-				  `pmNoOfIurSwDownNgCong` VARCHAR(100) DEFAULT NULL,
-				  `pmNoOfIurTermCsCong` VARCHAR(100) DEFAULT NULL,
-				  `pmNoOfIurTermHsCong` VARCHAR(100) DEFAULT NULL,
-				  `pmNoOfIurTermSpeechCong` VARCHAR(100) DEFAULT NULL,
-				  `pmNoOfSwDownEulCong` VARCHAR(100) DEFAULT NULL,
-				  `pmNoOfSwDownHsCong` VARCHAR(100) DEFAULT NULL,
-				  `pmNoOfSwDownNgCong` VARCHAR(100) DEFAULT NULL,
-				  `pmNoOfSwDownNgHo` VARCHAR(100) DEFAULT NULL,
-				  `pmNoOfTermCsCong` VARCHAR(100) DEFAULT NULL,
-				  `pmNoOfTermSpeechCong` VARCHAR(100) DEFAULT NULL,
-				  `pmNoPagingAttemptCnInitDcch` VARCHAR(100) DEFAULT NULL,
-				  `pmNoPagingAttemptUtranRejected` VARCHAR(100) DEFAULT NULL,
-				  `pmNoPagingType1Attempt` VARCHAR(100) DEFAULT NULL,
-				  `pmNoPagingType1AttemptCs` VARCHAR(100) DEFAULT NULL,
-				  `pmNoPagingType1AttemptPs` VARCHAR(100) DEFAULT NULL,
-				  `pmSamplesAmr12200RabEstablish` VARCHAR(100) DEFAULT NULL,
-				  `pmSamplesBestAmr12200RabEstablish` VARCHAR(100) DEFAULT NULL,
-				  `pmSamplesCompMode` VARCHAR(100) DEFAULT NULL,
-				  `pmSamplesCs64RabEstablish` VARCHAR(100) DEFAULT NULL,
-				  `pmSumAmr12200RabEstablish` VARCHAR(100) DEFAULT NULL,
-				  `pmSumBestAmr12200RabEstablish` VARCHAR(100) DEFAULT NULL,
-				  `pmSumCompMode` VARCHAR(100) DEFAULT NULL,
-				  `pmSumCs64RabEstablish` VARCHAR(100) DEFAULT NULL,
-				  `pmSumUesWith1Rls1RlInActSet` VARCHAR(100) DEFAULT NULL,
-				  `pmSumUesWith1Rls2RlInActSet` VARCHAR(100) DEFAULT NULL,
-				  `pmSumUesWith1Rls3RlInActSet` VARCHAR(100) DEFAULT NULL,
-				  `pmSumUesWith2Rls2RlInActSet` VARCHAR(100) DEFAULT NULL,
-				  `pmSumUesWith2Rls3RlInActSet` VARCHAR(100) DEFAULT NULL,
-				  `pmSumUesWith2Rls4RlInActSet` VARCHAR(100) DEFAULT NULL,
-				  `pmSumUesWith3Rls3RlInActSet` VARCHAR(100) DEFAULT NULL,
-				  `pmSumUesWith3Rls4RlInActSet` VARCHAR(100) DEFAULT NULL,
-				  `pmSumUesWith4Rls4RlInActSet` VARCHAR(100) DEFAULT NULL
+				  `neun` VARCHAR(10) DEFAULT NULL,
+				  `nedn` VARCHAR(70) DEFAULT NULL,
+				  `nesw` VARCHAR(30) DEFAULT NULL,
+				  `mts` VARCHAR(30) DEFAULT NULL,
+				  `gp` VARCHAR(10) DEFAULT NULL,
+				  `moid` VARCHAR(70) DEFAULT NULL,
+					pmCmAttDlHls VARCHAR(100) DEFAULT NULL,
+					pmCmAttDlSf2 VARCHAR(100) DEFAULT NULL,
+					pmCmAttUlHls VARCHAR(100) DEFAULT NULL,
+					pmCmAttUlSf2 VARCHAR(100) DEFAULT NULL,
+					pmCmStop VARCHAR(100) DEFAULT NULL,
+					pmCmSuccDlHls VARCHAR(100) DEFAULT NULL,
+					pmCmSuccDlSf2 VARCHAR(100) DEFAULT NULL,
+					pmCmSuccUlHls VARCHAR(100) DEFAULT NULL,
+					pmCmSuccUlSf2 VARCHAR(100) DEFAULT NULL,
+					pmInterFreqMeasCmStart VARCHAR(100) DEFAULT NULL,
+					pmInterFreqMeasCmStop VARCHAR(100) DEFAULT NULL,
+					pmInterFreqMeasNoCmStart VARCHAR(100) DEFAULT NULL,
+					pmInterFreqMeasNoCmStop VARCHAR(100) DEFAULT NULL,
+					pmIratHoGsmMeasCmStart VARCHAR(100) DEFAULT NULL,
+					pmIratHoGsmMeasNoCmStart VARCHAR(100) DEFAULT NULL,
+					pmNoNormalReleaseSrbOnly34 VARCHAR(100) DEFAULT NULL,
+					pmNoOfIurSwDownNgCong VARCHAR(100) DEFAULT NULL,
+					pmNoOfIurTermCsCong VARCHAR(100) DEFAULT NULL,
+					pmNoOfIurTermHsCong VARCHAR(100) DEFAULT NULL,
+					pmNoOfIurTermSpeechCong VARCHAR(100) DEFAULT NULL,
+					pmNoOfSwDownEulCong VARCHAR(100) DEFAULT NULL,
+					pmNoOfSwDownHsCong VARCHAR(100) DEFAULT NULL,
+					pmNoOfSwDownNgCong VARCHAR(100) DEFAULT NULL,
+					pmNoOfSwDownNgHo VARCHAR(100) DEFAULT NULL,
+					pmNoOfTermCsCong VARCHAR(100) DEFAULT NULL,
+					pmNoOfTermSpeechCong VARCHAR(100) DEFAULT NULL,
+					pmNoPagingAttemptCnInitDcch VARCHAR(100) DEFAULT NULL,
+					pmNoPagingAttemptUtranRejected VARCHAR(100) DEFAULT NULL,
+					pmNoPagingType1Attempt VARCHAR(100) DEFAULT NULL,
+					pmNoPagingType1AttemptCs VARCHAR(100) DEFAULT NULL,
+					pmNoPagingType1AttemptPs VARCHAR(100) DEFAULT NULL,
+					pmNoSystemReleaseSrbOnly34 VARCHAR(100) DEFAULT NULL,
+					pmSamplesAmr12200RabEstablish VARCHAR(100) DEFAULT NULL,
+					pmSamplesBestAmr12200RabEstablish VARCHAR(100) DEFAULT NULL,
+					pmSamplesCompMode VARCHAR(100) DEFAULT NULL,
+					pmSamplesCs64RabEstablish VARCHAR(100) DEFAULT NULL,
+					pmSumAmr12200RabEstablish VARCHAR(100) DEFAULT NULL,
+					pmSumBestAmr12200RabEstablish VARCHAR(100) DEFAULT NULL,
+					pmSumCompMode VARCHAR(100) DEFAULT NULL,
+					pmSumCs64RabEstablish VARCHAR(100) DEFAULT NULL,
+					pmSumUesWith1Rls1RlInActSet VARCHAR(100) DEFAULT NULL,
+					pmSumUesWith1Rls2RlInActSet VARCHAR(100) DEFAULT NULL,
+					pmSumUesWith1Rls3RlInActSet VARCHAR(100) DEFAULT NULL,
+					pmSumUesWith2Rls2RlInActSet VARCHAR(100) DEFAULT NULL,
+					pmSumUesWith2Rls3RlInActSet VARCHAR(100) DEFAULT NULL,
+					pmSumUesWith2Rls4RlInActSet VARCHAR(100) DEFAULT NULL,
+					pmSumUesWith3Rls3RlInActSet VARCHAR(100) DEFAULT NULL,
+					pmSumUesWith3Rls4RlInActSet VARCHAR(100) DEFAULT NULL,
+					pmSumUesWith4Rls4RlInActSet VARCHAR(100) DEFAULT NULL
+				) ENGINE=MYISAM DEFAULT CHARSET=latin1 DELAY_KEY_WRITE=1'
+				);	
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`table_pmHsDowntimeMan` 
+				(
+				  `neun` VARCHAR(10) DEFAULT NULL,
+				  `nedn` VARCHAR(70) DEFAULT NULL,
+				  `nesw` VARCHAR(30) DEFAULT NULL,
+				  `mts` VARCHAR(30) DEFAULT NULL,
+				  `gp` VARCHAR(10) DEFAULT NULL,
+				  `moid` VARCHAR(70) DEFAULT NULL,
+				  `pmHsDowntimeMan` VARCHAR(100) DEFAULT NULL,
+				  `pmHsDowntimeAuto` VARCHAR(100) DEFAULT NULL,
+				  `pmSumHsDlRlcUserPacketThp` VARCHAR(100) DEFAULT NULL,
+				  `pmSamplesHsDlRlcUserPacketThp` VARCHAR(100) DEFAULT NULL,
+				  `pmSumHsDlRlcTotPacketThp` VARCHAR(100) DEFAULT NULL,
+				  `pmSamplesHsDlRlcTotPacketThp` VARCHAR(100) DEFAULT NULL
+				) ENGINE=MYISAM DEFAULT CHARSET=latin1 DELAY_KEY_WRITE=1'
+				);	
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`table_pmSamplesRrcOnlyEstablish` 
+				(
+				  `neun` VARCHAR(10) DEFAULT NULL,
+				  `nedn` VARCHAR(70) DEFAULT NULL,
+				  `nesw` VARCHAR(30) DEFAULT NULL,
+				  `mts` VARCHAR(30) DEFAULT NULL,
+				  `gp` VARCHAR(10) DEFAULT NULL,
+				  `moid` VARCHAR(70) DEFAULT NULL,
+				  `pmSamplesRrcOnlyEstablish` VARCHAR(100) DEFAULT NULL,
+				  `pmSumRrcOnlyEstablish` VARCHAR(100) DEFAULT NULL,
+				  `pmTotNoRrcConnectAttIratCcOrder` VARCHAR(100) DEFAULT NULL,
+				  `pmTotNoRrcConnectAttIratCellResel` VARCHAR(100) DEFAULT NULL,
+				  `pmTotNoRrcConnectFailCongIratCcOrder` VARCHAR(100) DEFAULT NULL,
+				  `pmTotNoRrcConnectFailCongIratCellResel` VARCHAR(100) DEFAULT NULL,
+				  `pmTotNoRrcConnectReqSms` VARCHAR(100) DEFAULT NULL,
+				  `pmTotNoRrcConnectSuccessIratCcOrder` VARCHAR(100) DEFAULT NULL,
+				  `pmTotNoRrcConnectSuccessIratCellResel` VARCHAR(100) DEFAULT NULL,
+				  `pmTotNoTermRrcConnectReq` VARCHAR(100) DEFAULT NULL,
+				  `pmTotNoTermRrcConnectReqCs` VARCHAR(100) DEFAULT NULL,
+				  `pmTotNoTermRrcConnectReqCsSucc` VARCHAR(100) DEFAULT NULL,
+				  `pmTotNoTermRrcConnectReqPs` VARCHAR(100) DEFAULT NULL,
+				  `pmTotNoTermRrcConnectReqPsSucc` VARCHAR(100) DEFAULT NULL,
+				  `pmTotNoTermRrcConnectReqSucc` VARCHAR(100) DEFAULT NULL
+				) ENGINE=MYISAM DEFAULT CHARSET=latin1 DELAY_KEY_WRITE=1'
+				);	
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
+	
+	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`table_pmDlTrafficVolumeCs` 
+				(
+				  `neun` VARCHAR(10) DEFAULT NULL,
+				  `nedn` VARCHAR(70) DEFAULT NULL,
+				  `nesw` VARCHAR(30) DEFAULT NULL,
+				  `mts` VARCHAR(30) DEFAULT NULL,
+				  `gp` VARCHAR(10) DEFAULT NULL,
+				  `moid` VARCHAR(70) DEFAULT NULL,
+				  `pmDlTrafficVolumeCs12` VARCHAR(100) DEFAULT NULL,
+				  `pmDlTrafficVolumeCs64` VARCHAR(100) DEFAULT NULL,
+				  `pmDlTrafficVolumePs128` VARCHAR(100) DEFAULT NULL,
+				  `pmDlTrafficVolumePs16` VARCHAR(100) DEFAULT NULL,
+				  `pmDlTrafficVolumePs384` VARCHAR(100) DEFAULT NULL,
+				  `pmDlTrafficVolumePs64` VARCHAR(100) DEFAULT NULL,
+				  `pmDlTrafficVolumePs8` VARCHAR(100) DEFAULT NULL,
+				  `pmDlTrafficVolumePsCommon` VARCHAR(100) DEFAULT NULL,
+				  `pmDlTrafficVolumePsIntHs` VARCHAR(100) DEFAULT NULL,
+				  `pmUlTrafficVolumeCs12` VARCHAR(100) DEFAULT NULL,
+				  `pmUlTrafficVolumeCs64` VARCHAR(100) DEFAULT NULL,
+				  `pmUlTrafficVolumePs128` VARCHAR(100) DEFAULT NULL,
+				  `pmUlTrafficVolumePs16` VARCHAR(100) DEFAULT NULL,
+				  `pmUlTrafficVolumePs384` VARCHAR(100) DEFAULT NULL,
+				  `pmUlTrafficVolumePs64` VARCHAR(100) DEFAULT NULL,
+				  `pmUlTrafficVolumePs8` VARCHAR(100) DEFAULT NULL,
+				  `pmUlTrafficVolumePsCommon` VARCHAR(100) DEFAULT NULL,
+				  `pmUlTrafficVolumePsIntEul` VARCHAR(100) DEFAULT NULL
 				) ENGINE=MYISAM DEFAULT CHARSET=latin1 DELAY_KEY_WRITE=1'
 				);	
 	PREPARE Stmt FROM @SqlCmd;

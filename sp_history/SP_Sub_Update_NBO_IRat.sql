@@ -9,16 +9,16 @@ BEGIN
 	
 	SELECT gt_strtok(GT_DB,2,'_') INTO RNC_ID;
 	
-	SET @SqlCmd=CONCAT('SELECT `att_value` INTO @STANDARD_RSSI FROM ',GT_DB,'.`sys_config` WHERE `group_name`=''NBO'' AND att_name = ''STANDARD_RSSI'';');
+	SET @SqlCmd=CONCAT('SELECT `att_value` INTO @STANDARD_RSSI FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''NBO'' AND att_name = ''STANDARD_RSSI'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;	
-	SET @SqlCmd=CONCAT('SELECT `att_value` INTO @MAX_IRAT_NBR FROM ',GT_DB,'.`sys_config` WHERE `group_name`=''NBO'' AND att_name=''MAX_IRAT_NBR'';');
+	SET @SqlCmd=CONCAT('SELECT `att_value` INTO @MAX_IRAT_NBR FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''NBO'' AND att_name=''MAX_IRAT_NBR'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','START ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO_IRat','Start ', NOW());
 	CALL SP_Sub_Set_Session_Param(GT_DB);
 	
 	SET @SqlCmd=CONCAT('TRUNCATE TABLE ',GT_DB,'.opt_nbr_result_irat;');
@@ -139,15 +139,6 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	 
-	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.`opt_inter_irat_pri` A
-				LEFT JOIN  ',CURRENT_NT_DB,'.nt_current B
-				ON A.`RNC_ID`=B.RNC_ID AND A.`CELL_ID`=B.CELL_ID
-				SET A.DISTANCE_METER=B.NB_AVG_DISTANCE_GSM
-				WHERE A.DISTANCE_METER IS NULL;');
-	PREPARE Stmt FROM @SqlCmd;
-	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;	
 	
 	SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.`tmp_opt_inter_irat_pri` (
 				  `RNC_ID` VARCHAR(10) DEFAULT NULL,
@@ -560,10 +551,10 @@ BEGIN
 				  A.PRIORITY_WEIGHTED AS PRI_WEIGHTED,
 				  B.PRIORITY AS NBR_PRIORITY,
 				  CASE WHEN (A.`RANK`<=',@MAX_IRAT_NBR,') AND A.`NBR_TYPE`=3 THEN ''Keep''
-					WHEN (A.`RANK`>',@MAX_IRAT_NBR,') AND A.`NBR_TYPE`=3 THEN ''REMOVE''
-					WHEN (A.`RANK`<=',@MAX_IRAT_NBR,') AND A.`NBR_TYPE`=0 AND PRIORITY_WEIGHTED<999 THEN ''ADD''
-					WHEN (A.`RANK`>',@MAX_IRAT_NBR,') AND A.`NBR_TYPE`=0 AND PRIORITY_WEIGHTED<999 THEN ''NONE''
-					WHEN PRIORITY_WEIGHTED>999 THEN ''IGNORE''
+					WHEN (A.`RANK`>',@MAX_IRAT_NBR,') AND A.`NBR_TYPE`=3 THEN ''Remove''
+					WHEN (A.`RANK`<=',@MAX_IRAT_NBR,') AND A.`NBR_TYPE`=0 AND PRIORITY_WEIGHTED<999 THEN ''Add''
+					WHEN (A.`RANK`>',@MAX_IRAT_NBR,') AND A.`NBR_TYPE`=0 AND PRIORITY_WEIGHTED<999 THEN ''None''
+					WHEN PRIORITY_WEIGHTED>999 THEN ''Ignore''
 				  END AS ACTION
 				FROM `',GT_DB,'`.`tmp_table_opt_nbr_result` A
 				LEFT JOIN `',GT_DB,'`.`opt_inter_irat_pri` B

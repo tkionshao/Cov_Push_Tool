@@ -16,7 +16,7 @@ BEGIN
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
 		
-		SELECT '{tech:â€ALL â€, name:â€SP-Reportâ€, status:â€2â€,message_id: â€œnullâ€, message: â€œSP_CovMo_Cross_Query_Parallel Failed Table tmp_materialization_',PID,' doesnt exist. Check necessary table first.â€, log_path: â€œâ€}' AS message;
+		SELECT '{tech:”ALL ”, name:”SP-Report”, status:”2”,message_id: “null”, message: “SP_CovMo_Cross_Query_Parallel Failed Table tmp_materialization_',PID,' doesnt exist. Check necessary table first.”, log_path: “”}' AS message;
 	END;
 	SET @@session.group_concat_max_len = @@global.max_allowed_packet;
 	

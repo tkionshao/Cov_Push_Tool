@@ -105,9 +105,9 @@ BEGIN
 					, DATA_HOUR
 					, POS_FIRST_RNC
 					, 4 
-					, NBAP_FAILURE_CNT
+					, NBAP_FAILURE_EVENT_LAST
 					, NBAP_FAILURE_CAUSE_LAST
-				ORDER BY NULL
+				order by null
 				;');
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;

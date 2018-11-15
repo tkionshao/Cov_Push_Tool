@@ -13,107 +13,14 @@ BEGIN
 	ELSEIF TECH = 'GSM' THEN
 		SET ID = 'BSC_ID';
 	END IF;
+	SET @SqlCmd=CONCAT('SELECT COUNT(*) INTO @CHECK_CNT FROM ',GT_DB,'.',SOURCE_TBL,' WHERE (',COL,' IS NULL OR ',COL,' = '''') AND (',COL,' IS NULL OR ',COL,' != 0);');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt; 
 	
-	IF COL = 'ACT_STATE' THEN
-		SET @SqlCmd=CONCAT('SELECT COUNT(*) INTO @CHECK_CNT FROM ',GT_DB,'.',SOURCE_TBL,' WHERE ',COL,' <> ''COMMERCIAL'';');
-		PREPARE Stmt FROM @SqlCmd;
-		EXECUTE Stmt;
-		DEALLOCATE PREPARE Stmt; 
-	
-		IF @CHECK_CNT > 0 THEN
+	IF @CHECK_CNT > 0 THEN
 		
-			SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.nt_log (ID,CELL_ID,TBL_NAME,COL_NAME,LOG_TYPE,DUMP_LOG)
-					SELECT
-						',ID,'
-						,CELL_ID
-						,''',SOURCE_TBL,'''
-						,''',COL,'''
-						,''1'' # 1 IS DUMP
-						,ACT_STATE
-					FROM ',GT_DB,'.',SOURCE_TBL,'
-					WHERE ',COL,' <> ''COMMERCIAL'';');
-			PREPARE Stmt FROM @SqlCmd;
-			EXECUTE Stmt;
-			DEALLOCATE PREPARE Stmt; 
-			
-			
-			SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.',DUMP_TBL,'
-					SELECT *   FROM ',GT_DB,'.',SOURCE_TBL,' WHERE ',COL,' <> ''COMMERCIAL'';
-					');
-			PREPARE Stmt FROM @SqlCmd;
-			EXECUTE Stmt;
-			DEALLOCATE PREPARE Stmt; 
-	
-			SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.',DUMP_TBL,'
-					SET FLAG  = 1000  WHERE ',COL,' <> ''COMMERCIAL'';
-					');
-			PREPARE Stmt FROM @SqlCmd;
-			EXECUTE Stmt;
-			DEALLOCATE PREPARE Stmt;
-		
-			
-			SET @SqlCmd=CONCAT('DELETE FROM ',GT_DB,'.',SOURCE_TBL,' WHERE ',COL,' <> ''COMMERCIAL'';
-					');
-			PREPARE Stmt FROM @SqlCmd;
-			EXECUTE Stmt;
-			DEALLOCATE PREPARE Stmt; 
-		END IF;
-	
-	ELSEIF COL = 'EUTRABAND' THEN
- 		SET @SqlCmd=CONCAT('SELECT COUNT(*) INTO @CHECK_CNT FROM ',GT_DB,'.',SOURCE_TBL,' WHERE ',COL,' IS NULL;');
- 		PREPARE Stmt FROM @SqlCmd;
- 		EXECUTE Stmt;
- 		DEALLOCATE PREPARE Stmt; 
-	
-		IF @CHECK_CNT > 0 THEN
-		
-			SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.nt_log (ID,CELL_ID,TBL_NAME,COL_NAME,LOG_TYPE,DUMP_LOG)
-					SELECT
-						',ID,'
-						,CELL_ID
-						,''',SOURCE_TBL,'''
-						,''',COL,'''
-						,''1'' # 1 IS DUMP
-						,EUTRABAND
-					FROM ',GT_DB,'.',SOURCE_TBL,'
-					WHERE ',COL,' IS NULL;');
-			PREPARE Stmt FROM @SqlCmd;
-			EXECUTE Stmt;
-			DEALLOCATE PREPARE Stmt; 
-			
-			
-			SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.',DUMP_TBL,'
-					SELECT *   FROM ',GT_DB,'.',SOURCE_TBL,' WHERE ',COL,' IS NULL;
-					');
-			PREPARE Stmt FROM @SqlCmd;
-			EXECUTE Stmt;
-			DEALLOCATE PREPARE Stmt; 
-	
-			SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.',DUMP_TBL,'
-					SET FLAG  = 1000  WHERE ',COL,' IS NULL;
-					');
-			PREPARE Stmt FROM @SqlCmd;
-			EXECUTE Stmt;
-			DEALLOCATE PREPARE Stmt;
-		
-			
-			SET @SqlCmd=CONCAT('DELETE FROM ',GT_DB,'.',SOURCE_TBL,' WHERE ',COL,' IS NULL;
-					');
-			PREPARE Stmt FROM @SqlCmd;
-			EXECUTE Stmt;
-			DEALLOCATE PREPARE Stmt; 
-		END IF;
-	
-	ELSE
-	
-		SET @SqlCmd=CONCAT('SELECT COUNT(*) INTO @CHECK_CNT FROM ',GT_DB,'.',SOURCE_TBL,' WHERE (',COL,' IS NULL OR ',COL,' = '''') AND (',COL,' IS NULL OR ',COL,' != 0);');
-		PREPARE Stmt FROM @SqlCmd;
-		EXECUTE Stmt;
-		DEALLOCATE PREPARE Stmt; 
-	
-		IF @CHECK_CNT > 0 THEN
-		
-			SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.nt_log (ID,CELL_ID,TBL_NAME,COL_NAME,LOG_TYPE,DUMP_LOG)
+		SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.nt_log (ID,CELL_ID,TBL_NAME,COL_NAME,LOG_TYPE,DUMP_LOG)
 					SELECT
 						',ID,'
 						,CELL_ID
@@ -123,47 +30,30 @@ BEGIN
 						,''DATA IS NULL''
 					FROM ',GT_DB,'.',SOURCE_TBL,'
 					WHERE (',COL,' IS NULL OR ',COL,' = '''') AND (',COL,' IS NULL OR ',COL,' != 0);');
-			PREPARE Stmt FROM @SqlCmd;
-			EXECUTE Stmt;
-			DEALLOCATE PREPARE Stmt; 
-			
-			
-	
-	
-			IF SOURCE_TBL = 'nt_cell_current_lte' THEN 
-				SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.',DUMP_TBL,'
-						SELECT * FROM ',GT_DB,'.',SOURCE_TBL,' WHERE (',COL,' IS NULL OR ',COL,' = '''') AND (',COL,' IS NULL OR ',COL,' != 0);
-						');
-				PREPARE Stmt FROM @SqlCmd;
-				EXECUTE Stmt;
-				DEALLOCATE PREPARE Stmt; 
-			ELSE
-			
-				SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.',DUMP_TBL,'
-						SELECT * FROM ',GT_DB,'.',SOURCE_TBL,' WHERE (',COL,' IS NULL OR ',COL,' = '''') AND (',COL,' IS NULL OR ',COL,' != 0);
-						');
-				PREPARE Stmt FROM @SqlCmd;
-				EXECUTE Stmt;
-				DEALLOCATE PREPARE Stmt; 
-				
-				SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.',DUMP_TBL,'
-						SET FLAG  = 1000  WHERE (',COL,' IS NULL OR ',COL,' = '''') AND (',COL,' IS NULL OR ',COL,' != 0);
-						');
-				PREPARE Stmt FROM @SqlCmd;
-				EXECUTE Stmt;
-				DEALLOCATE PREPARE Stmt;
-	
-			END IF;
-	
-	
-			
-			
-			SET @SqlCmd=CONCAT('DELETE FROM ',GT_DB,'.',SOURCE_TBL,' WHERE (',COL,' IS NULL OR ',COL,' = '''') AND (',COL,' IS NULL OR ',COL,' != 0);
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt; 	
+		
+		SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.',DUMP_TBL,'
+					SELECT * FROM ',GT_DB,'.',SOURCE_TBL,' WHERE (',COL,' IS NULL OR ',COL,' = '''') AND (',COL,' IS NULL OR ',COL,' != 0);
 					');
-			PREPARE Stmt FROM @SqlCmd;
-			EXECUTE Stmt;
-			DEALLOCATE PREPARE Stmt; 
-		END IF;
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt; 
+	
+		SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.',DUMP_TBL,'
+					SET flag = 1000 
+					WHERE (',COL,' IS NULL OR ',COL,' = '''') AND (',COL,' IS NULL OR ',COL,' != 0);
+					');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt; 
+		
+		SET @SqlCmd=CONCAT('DELETE FROM ',GT_DB,'.',SOURCE_TBL,' WHERE (',COL,' IS NULL OR ',COL,' = '''') AND (',COL,' IS NULL OR ',COL,' != 0);
+				');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt; 
 	END IF;
 END$$
 DELIMITER ;

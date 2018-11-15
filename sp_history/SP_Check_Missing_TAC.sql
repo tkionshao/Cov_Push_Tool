@@ -3,12 +3,10 @@ USE `gt_gw_main`$$
 DROP PROCEDURE IF EXISTS `SP_CreateDB_LTE`$$
 CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Check_Missing_TAC`()
 BEGIN
-	
 	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS tmp_dim_handset_ap;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	
 	
 	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE `tmp_dim_handset_ap` (
 				  `tac` VARCHAR(8) NOT NULL,
@@ -17,7 +15,6 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt; 
-	
 	
 	SET @SqlCmd=CONCAT('INSERT INTO tmp_dim_handset_ap 
 				SELECT TAC FROM `gt_gw_main`.`dim_handset_ap` ;');
@@ -44,7 +41,6 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt; 
-	
 	
 	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS tmp_dim_handset_ap;');
 	PREPARE Stmt FROM @SqlCmd;

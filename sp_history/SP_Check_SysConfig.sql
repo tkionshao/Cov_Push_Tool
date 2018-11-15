@@ -4,6 +4,8 @@ DROP PROCEDURE IF EXISTS `SP_CreateDB_LTE`$$
 CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Check_SysConfig`(IN STEP CHAR(5),IN FILEDATE VARCHAR(18),IN GT_DB VARCHAR(50),IN FROM_GT_DB VARCHAR(50))
 BEGIN
 	DECLARE DATA_DATE VARCHAR(50);
+	DECLARE CURRENT_NT_DB VARCHAR(10) DEFAULT CONCAT('gt_nt_',LEFT(gt_strtok(GT_DB,3,'_'),4),SUBSTRING(gt_strtok(GT_DB,3,'_'),5,2),SUBSTRING(gt_strtok(GT_DB,3,'_'),7,2));
+	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Check_SysConfig','Start', NOW());
 	
 	IF STEP = 'STEP1' THEN
@@ -25,7 +27,7 @@ BEGIN
 			DEALLOCATE PREPARE Stmt;
 			
 			SET @SqlCmd =CONCAT('CREATE TABLE gt_gw_main.sys_config ENGINE=MYISAM
-					     SELECT * FROM gt_covmo.sys_config;');
+					     SELECT * FROM ',CURRENT_NT_DB,'.sys_config;');
 			PREPARE Stmt FROM @SqlCmd;
 			EXECUTE Stmt;
 			DEALLOCATE PREPARE Stmt;
@@ -54,14 +56,12 @@ BEGIN
 			INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Check_SysConfig','INSERT sys_config start', NOW());
 		
 			SET @SqlCmd =CONCAT('CREATE TABLE ',GT_DB,'.sys_config ENGINE=MYISAM
-					     SELECT * FROM GT_COVMO.sys_config;');
+					     SELECT * FROM ',CURRENT_NT_DB,'.sys_config;');
 			PREPARE Stmt FROM @SqlCmd;
 			EXECUTE Stmt;
 			DEALLOCATE PREPARE Stmt;
 		END IF;
-	
 	END IF;
-	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Check_SysConfig','End', NOW());
 END$$
 DELIMITER ;

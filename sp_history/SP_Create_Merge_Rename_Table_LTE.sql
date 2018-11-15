@@ -28,18 +28,16 @@ BEGIN
 	DECLARE RPT_HIGH_FLAG VARCHAR(10);
 	DECLARE RPT_HIGH_MED_FLAG VARCHAR(10);
 	DECLARE NBIoT_FLAG VARCHAR(10);
-	DECLARE IMSI_TABLE_FLAG VARCHAR(10);
-
+	
 	SELECT LOWER(`value`) INTO TAC_REPORT_FLAG  FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = '01.tac.report' ;
 	SELECT LOWER(`value`) INTO CQI_FLAG FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'cqi' ;
 	SELECT LOWER(`value`) INTO PMC_FLAG FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'pmc' ;
 	SELECT LOWER(`value`) INTO MDT_FLAG FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'mdt' ;
 	SELECT LOWER(`value`) INTO PM_COUNTER_FLAG FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'pm_counter';
-	SELECT LOWER(`value`) INTO RPT_HIGH_FLAG FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'rpt_high' ; 
-	SELECT LOWER(`value`) INTO RPT_HIGH_MED_FLAG FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'rpt_high_med' ; 
+	SELECT LOWER(`value`) INTO RPT_HIGH_FLAG FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'rpt_high' ; -- DTAG -- STC
+	SELECT LOWER(`value`) INTO RPT_HIGH_MED_FLAG FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'rpt_high_med' ; -- DTAG -- STC
 	SELECT LOWER(`value`) INTO NBIoT_FLAG FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'NB-IoT';
-	SELECT LOWER(`value`) INTO IMSI_TABLE_FLAG FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'imsi_table' ; 
-
+	
 	SET @tbl_num2 = NULL;
 	SET @TileResolution = NULL;
 	SET @special_imsig_TileResolution = NULL;
@@ -47,21 +45,16 @@ BEGIN
 	SET @zoomlevel = NULL;
 	SET @cr = NULL;
 	
-
-	
+	#Zoomlevel variables for DTAG
 	SET @SqlCmd=CONCAT('SELECT att_value INTO @TileResolution FROM `',CURRENT_NT_DB,'`.`sys_config` WHERE group_name = ''system'' AND att_name = ''TileResolution'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	SET tile_count = gt_covmo_csv_count(@TileResolution,',');
 	
-
-
-	
-	
+	#CR variables for SingTel
 	SET @SqlCmd=CONCAT('SELECT LOWER(att_value) INTO @SPECIAL_IMSI_CR FROM ',CURRENT_NT_DB,'.sys_config WHERE group_name = ''System'' AND tech_mask = 7 AND att_name = ''DataProcessForImsiRange'';');
 	PREPARE Stmt FROM @SqlCmd;
-	SELECT @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;	
 	SET @SqlCmd=CONCAT('SELECT att_value INTO @CR_THRESHOLD FROM ',CURRENT_NT_DB,'.sys_config WHERE group_name = ''System'' AND tech_mask = 7 AND att_name = ''SpecifiedIMSIRangeValue'';');
@@ -74,28 +67,28 @@ BEGIN
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
 	END IF;
+	
 	SET cr_count = gt_covmo_csv_count(@special_imsig_SpecifiedIMSIRangeValue,',');
-
 	
+	#Special IMSI variables for ET
+	SELECT LOWER(`value`) INTO SPECIAL_IMSI  FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'special_imsi' ;
+-- 	SELECT GROUP_CONCAT(DISTINCT (ABS(`GROUP_ID`))) INTO @special_imsig_TileResolution FROM `gt_covmo`.`dim_imsi_group` WHERE GROUP_ID < 0 AND GROUP_ID >= -10000;
+	SET @SqlCmd=CONCAT('SELECT GROUP_CONCAT(DISTINCT (ABS(`GROUP_ID`))) INTO @special_imsig_TileResolution FROM ',CURRENT_NT_DB,'.`dim_imsi_group` WHERE GROUP_ID < 0 AND GROUP_ID >= -10000;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+	SET imsig_count = gt_covmo_csv_count(@special_imsig_TileResolution,',');
 	
-	IF IMSI_TABLE_FLAG = 'true' THEN 
-		SELECT LOWER(`value`) INTO SPECIAL_IMSI  FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'special_imsi' ;
-	
-		SET @SqlCmd=CONCAT('SELECT GROUP_CONCAT(DISTINCT (ABS(`GROUP_ID`))) INTO @special_imsig_TileResolution FROM ',CURRENT_NT_DB,'.`dim_imsi_group` WHERE GROUP_ID < 0 AND GROUP_ID >= -10000;');
-		PREPARE Stmt FROM @SqlCmd;
-		EXECUTE Stmt;
-		DEALLOCATE PREPARE Stmt;
-		SET imsig_count = gt_covmo_csv_count(@special_imsig_TileResolution,',');
-		
-		INSERT INTO gt_gw_main.SP_LOG VALUES(GT_DB,'SP_Create_Merge_Rename_Table_LTE','Start', START_TIME);
-	END IF;
+	INSERT INTO gt_gw_main.SP_LOG VALUES(GT_DB,'SP_Create_Merge_Rename_Table_LTE','Start', START_TIME);
 	
 	IF FLAG='WK' THEN		
 		SET v_j=1;
 		WHILE v_j <= tile_count DO
 		BEGIN	
 			SET @zoomlevel = gt_covmo_csv_get(@TileResolution,v_j);
-			
+			/**
+			* Create zoomlevel tabl
+			*/
 			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_end_wk');
 			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_end_wk_def');
 			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_position_wk');
@@ -139,7 +132,7 @@ BEGIN
 				CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_tile_end_high_med_wk_def');
 			END IF;
 	
-			
+			/* ---end---- */
 			SET v_j=v_j+1;
 		END;
 		END WHILE;
@@ -147,26 +140,24 @@ BEGIN
 	
 	IF FLAG='DY' THEN
 		IF SPECIAL_IMSI = 'true' THEN
-SELECT 'merge_rename s';			
+			
 			SET v_j=1;
 			WHILE v_j <= imsig_count DO
 			BEGIN	
 				SET @group_id = gt_covmo_csv_get(@special_imsig_TileResolution,v_j);
 				SET @group_bottom_str = CONCAT('_imsig',@group_id);
-
+				
 				CALL gt_gw_main.SP_Create_Merge_Rename_24QI(GT_DB,CONCAT('table_call_lte',@group_bottom_str),@group_bottom_str,'table_call_lte');
 				CALL gt_gw_main.SP_Create_Merge_Rename_24QI(GT_DB,CONCAT('table_position_convert_ho_lte',@group_bottom_str),@group_bottom_str,'table_position_convert_ho_lte');
 				CALL gt_gw_main.SP_Create_Merge_Rename_24QI(GT_DB,CONCAT('table_position_convert_serving_lte',@group_bottom_str),@group_bottom_str,'table_position_convert_serving_lte');
 				CALL gt_gw_main.SP_Create_Merge_Rename_24QI(GT_DB,CONCAT('table_erab_lte',@group_bottom_str),@group_bottom_str,'table_erab_lte');
-
+	
 				SET v_j=v_j+1;
 			END;
 			END WHILE;
-SELECT 'merge_rename e';
-
 		END IF;	
 		SET v_j=1;
-		
+		#this loop for Zoomlevel
 		WHILE v_j <= tile_count DO
 		BEGIN	
 			SET @zoomlevel = gt_covmo_csv_get(@TileResolution,v_j);
@@ -195,7 +186,23 @@ SELECT 'merge_rename e';
 			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_tile_start_dy');
 			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_tile_start_dy_def');
 	
-			
+			/*CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_erab_start');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_erab_start_def');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_erab_start_dy');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_erab_start_dy_def');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_tile_erab_start');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_tile_erab_start_def');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_tile_erab_start_dy');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_tile_erab_start_dy_def');
+	
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_erab_end');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_erab_end_def');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_erab_end_dy');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_erab_end_dy_def');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_tile_erab_end');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_tile_erab_end_def');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_tile_erab_end_dy');
+			CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_tile_erab_end_dy_def');*/
 	
 			CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_cell_tile',@zoomlevel,'_end'));
 			CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_cell_tile',@zoomlevel,'_end_def'));
@@ -210,7 +217,15 @@ SELECT 'merge_rename e';
 			CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_start'));
 			CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_start_def'));
 	
-			
+			/*CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_cell_tile',@zoomlevel,'_erab_end'));
+			CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_cell_tile',@zoomlevel,'_erab_end_def'));
+			CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_cell_tile',@zoomlevel,'_erab_start'));
+			CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_cell_tile',@zoomlevel,'_erab_start_def'));
+	
+			CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_erab_end'));
+			CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_erab_end_def'));
+			CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_erab_start'));
+			CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_erab_start_def'));*/
 			
 			IF CQI_FLAG = 'true' THEN
 				CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_cqi');
@@ -227,7 +242,7 @@ SELECT 'merge_rename e';
 				CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_cqi_def'));
 			END IF;
 			
-			
+			## High / High+Medium level
 			IF RPT_HIGH_FLAG = 'true' THEN 
 				CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_position_high');
 				CALL gt_gw_main.SP_Create_Merge_Rename_ZoomLevel(GT_DB,@zoomlevel,'rpt_cell_tile_position_high_def');
@@ -318,13 +333,13 @@ SELECT 'merge_rename e';
 				CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_end_high_med'));
 				CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_end_high_med_def'));
 			END IF;
-			
-			
+			##
+			#this loop for CR
 			SET v_i=1;
 			WHILE v_i <= cr_count DO
 			BEGIN
 				SET @cr = CONCAT('_imsig',gt_covmo_csv_get(@special_imsig_SpecifiedIMSIRangeValue,v_i));
-				
+				#dy
 				CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_cell_tile_end_dy',@cr);
 				CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_cell_tile_end_dy_def',@cr);
 				CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_cell_tile_position_dy',@cr);
@@ -338,9 +353,17 @@ SELECT 'merge_rename e';
 				CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_tile_start_dy',@cr);
 				CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_tile_start_dy_def',@cr);
 				
-				
+				/*CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_cell_tile_erab_start_dy',@cr);
+				CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_cell_tile_erab_start_dy_def',@cr);
+				CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_tile_erab_start_dy',@cr);
+				CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_tile_erab_start_dy_def',@cr);
 	
-				
+				CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_cell_tile_erab_end_dy',@cr);
+				CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_cell_tile_erab_end_dy_def',@cr);
+				CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_tile_erab_end_dy',@cr);
+				CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_tile_erab_end_dy_def',@cr);*/
+	
+				#not dy
 				CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_cell_tile',@zoomlevel,'_end',@cr),@cr,'rpt_cell_tile_end');
 				CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_cell_tile',@zoomlevel,'_end_def',@cr),@cr,'rpt_cell_tile_end_def');
 				CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_cell_tile',@zoomlevel,'_position',@cr),@cr,'rpt_cell_tile_position');
@@ -354,7 +377,15 @@ SELECT 'merge_rename e';
 				CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_start',@cr),@cr,'rpt_cell_tile_start');
 				CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_start_def',@cr),@cr,'rpt_cell_tile_start_def');
 				
+				/*CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_cell_tile',@zoomlevel,'_erab_start',@cr),@cr,'rpt_cell_tile_erab_start');
+				CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_cell_tile',@zoomlevel,'_erab_start_def',@cr),@cr,'rpt_cell_til_erab_start_def');	
+				CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_cell_tile',@zoomlevel,'_erab_end',@cr),@cr,'rpt_cell_tile_erab_start');
+				CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_cell_tile',@zoomlevel,'_erab_end_def',@cr),@cr,'rpt_cell_tile_erab_start_def');
 				
+				CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_erab_start',@cr),@cr,'rpt_cell_tile_erab_start');
+				CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_erab_start_def',@cr),@cr,'rpt_cell_til_erab_start_def');	
+				CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_erab_end',@cr),@cr,'rpt_cell_tile_erab_start');
+				CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_tile',@zoomlevel,'_erab_end_def',@cr),@cr,'rpt_cell_tile_erab_start_def');*/
 	
 				IF CQI_FLAG = 'true' THEN
 					CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,@zoomlevel,'rpt_cell_tile_cqi_dy',@cr);
@@ -374,12 +405,12 @@ SELECT 'merge_rename e';
 			SET v_j=v_j+1;
 		END;
 		END WHILE;
-		
+		#this loop for CR
 		SET v_i=1;
 		WHILE v_i <= cr_count DO
 		BEGIN
 			SET @cr = CONCAT('_imsig',gt_covmo_csv_get(@special_imsig_SpecifiedIMSIRangeValue,v_i));
-			
+			#dy
 			CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,'','rpt_cell_end_dy',@cr);
 			CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,'','rpt_cell_end_dy_def',@cr);
 			CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,'','rpt_cell_imsi_end_dy',@cr);
@@ -414,7 +445,7 @@ SELECT 'merge_rename e';
 			CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,'','rpt_cell_erab_end_dy',@cr);
 			CALL gt_gw_main.SP_Create_Merge_Rename_CR(GT_DB,'','rpt_cell_erab_end_dy_def',@cr);
 	
-			
+			#not dy
 			CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_cell_dominatecallcell',@cr),@cr,'rpt_cell_dominatecallcell');
 			CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_cell_dominatersrpcell',@cr),@cr,'rpt_cell_dominatersrpcell');
 			CALL gt_gw_main.SP_Create_Merge_Rename_24HI(GT_DB,CONCAT('rpt_cell_end',@cr),@cr,'rpt_cell_end');
@@ -496,9 +527,6 @@ SELECT 'merge_rename e';
 		CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,'rpt_cell_tile_position_def');
 		CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,'rpt_tile_position');
 		CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,'rpt_tile_position_def');
-		
-		
-		IF IMSI_TABLE_FLAG = 'true' THEN 
 		CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,'rpt_cell_imsi_end');
 		CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,'rpt_cell_imsi_end_def');
 		CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,'rpt_cell_imsi_ho');
@@ -507,10 +535,6 @@ SELECT 'merge_rename e';
 		CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,'rpt_cell_imsi_srv_def');
 		CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,'rpt_cell_imsi_start');
 		CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,'rpt_cell_imsi_start_def');
-		END IF;
-		
-		
-		
 		CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,'rpt_cell_lte');
 		CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,'rpt_cell_position');
 		CALL gt_gw_main.SP_Create_Merge_Rename_24H(GT_DB,'rpt_cell_position_def');

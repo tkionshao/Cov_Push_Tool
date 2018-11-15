@@ -3,7 +3,6 @@ USE `gt_gw_main`$$
 DROP PROCEDURE IF EXISTS `SP_CreateDB_LTE`$$
 CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_CovMo_Check_Schema_Difference`(IN org_db VARCHAR(100),IN new_db VARCHAR(100))
 BEGIN
-	
 	DECLARE rowCountaltercolumn INT DEFAULT 0;
 	DECLARE rowCountaddtable INT DEFAULT 0;
 	DECLARE rowCountdroptable INT DEFAULT 0;
@@ -11,7 +10,10 @@ BEGIN
 	DECLARE v_i INT DEFAULT 0;
 	
 	DECLARE Altercolumn CURSOR FOR SELECT DISTINCT CONCAT('`',table_name,'`') AS table_name
-					FROM
+						FROM information_schema.COLUMNS A
+						WHERE  A.table_schema=org_db AND
+						EXISTS 
+/*					FROM
 					(
 					    SELECT
 						table_name,column_name,ordinal_position,
@@ -21,7 +23,7 @@ BEGIN
 					    GROUP BY table_name,column_name,column_type,is_nullable,COLUMN_KEY
 					    HAVING COUNT(1)=1
 					) A
-					WHERE EXISTS 
+					WHERE EXISTS */
 					(
 					SELECT NULL FROM information_schema.TABLES B
 					WHERE B.table_schema=new_db AND B.table_name=A.table_name AND B.TABLE_TYPE='BASE TABLE'
@@ -194,7 +196,7 @@ BEGIN
 				PREPARE Stmt FROM @SqlCmd;
 				EXECUTE Stmt;
 				DEALLOCATE PREPARE Stmt;
-				
+				/*alter column*/
 				SET @SqlCmd =CONCAT('INSERT INTO ',org_db,'.tmp_column_command 
 							(COMMAND_STR,TBL_NAME,PRI_FLAG,SORT_TYPE)
 							SELECT CASE WHEN dd.cnt=2 THEN CONCAT('' MODIFY '',dd.new_column_name,'' '',dd.column_type,CASE dd.is_nullable WHEN ''NO'' THEN '' NOT NULL '' ELSE '' DEFAULT NULL '' END,'''',CASE WHEN dd.COLUMN_DEFAULT IN (''CURRENT_TIMESTAMP'') THEN CONCAT('' DEFAULT '',dd.COLUMN_DEFAULT,'' '') WHEN dd.COLUMN_DEFAULT <>'''' THEN CONCAT('' DEFAULT '''''',dd.COLUMN_DEFAULT,'''''''') ELSE '''' END,'''',dd.extra,'''')
@@ -241,7 +243,7 @@ BEGIN
 	END;
 	CLOSE Altercolumn; 
 	
-	IF rowCountaltercolumn>0 THEN 
+	IF rowCountaltercolumn>0 THEN /*drop index*/
 		SET @SqlCmd =CONCAT('INSERT INTO ',org_db,'.tmp_column_command 
 					(COMMAND_STR,TBL_NAME,SORT_TYPE)
 					SELECT CONCAT(CASE A.CONSTRAINT_TYPE WHEN ''PRIMARY KEY'' THEN '' DROP PRIMARY KEY'' ELSE CONCAT('' DROP INDEX `'',A.index_name,''`'') END) AS COMMAND_STR
@@ -279,7 +281,7 @@ BEGIN
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
-		
+		/*drop index*/
 		SET @SqlCmd =CONCAT('INSERT INTO ',org_db,'.tmp_column_command 
 					(COMMAND_STR,TBL_NAME,SORT_TYPE)
 					SELECT CONCAT(CASE A.CONSTRAINT_TYPE WHEN ''PRIMARY KEY'' THEN '' DROP PRIMARY KEY'' ELSE CONCAT('' DROP INDEX `'',A.index_name,''`'') END) AS COMMAND_STR
@@ -317,7 +319,7 @@ BEGIN
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
-		
+		/*create index*/
 		SET @SqlCmd =CONCAT('INSERT INTO ',org_db,'.tmp_column_command 
 					(COMMAND_STR,TBL_NAME,SORT_TYPE)
 					SELECT CONCAT(CONCAT(CASE A.CONSTRAINT_TYPE WHEN ''PRIMARY KEY'' THEN '' ADD PRIMARY KEY('' WHEN ''UNIQUE'' THEN  CONCAT('' ADD UNIQUE '',A.index_name,''('') ELSE CONCAT('' ADD INDEX '',A.index_name,''('') END,A.index_column,'')'')) AS COMMAND_STR,A.table_name,7 AS SORT_TYPE
@@ -421,7 +423,15 @@ BEGIN
 		SET v_i = v_i + 1;
 	END;
 	END WHILE; 
-	
+/*		
+	SET @SqlCmd =CONCAT('SELECT COMMAND_STR FROM ',org_db,'.tmp_table_command
+				UNION ALL
+				SELECT COMMAND_STR FROM ',org_db,'.tmp_column_group_command;
+				');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
+*/	
 	SET @SqlCmd =CONCAT('DROP TEMPORARY TABLE IF EXISTS ',org_db,'.tmp_table_command;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
@@ -440,7 +450,6 @@ BEGIN
 	SET @SqlCmd =CONCAT('DROP DATABASE IF EXISTS ',new_db,';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
-	DEALLOCATE PREPARE Stmt;
-	
+	DEALLOCATE PREPARE Stmt;	
 END$$
 DELIMITER ;

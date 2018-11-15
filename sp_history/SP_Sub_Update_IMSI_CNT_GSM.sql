@@ -11,6 +11,15 @@ BEGIN
 	DECLARE ENDHOUR VARCHAR(2) DEFAULT IF(SUBSTRING(RIGHT(GT_DB,18),15,2)='00','24',SUBSTRING(RIGHT(GT_DB,18),15,2));
 	DECLARE RUN VARCHAR(20);
 	DECLARE WORKER_ID VARCHAR(10) DEFAULT CONNECTION_ID();
+	DECLARE STR_HR SMALLINT(6);
+	DECLARE MAX_HR SMALLINT(6);
+	DECLARE v_k SMALLINT(6);
+	DECLARE v_k_Diff SMALLINT(6);
+	DECLARE qry_tbl_name VARCHAR(50);
+	DECLARE qry_tbl_name2 VARCHAR(50);
+	DECLARE qry_tbl_name3 VARCHAR(50);
+	DECLARE qry_tbl_name4 VARCHAR(50);
+		
 	SELECT gt_strtok(GT_DB,2,'_') INTO BSC_ID;
 	SELECT REPLACE(GT_DB,SH_EH,'0000_0000') INTO GT_DB;
 	
@@ -57,13 +66,13 @@ BEGIN
 						, DATA_HOUR
 						, INDOOR
 						, MOVING
-						, POS_FIRST_BSC AS BSC_ID
-						, POS_FIRST_CELL AS CELL_ID
+						, POS_FIRST_BSC_ID AS BSC_ID
+						, POS_FIRST_CELL_ID AS CELL_ID
 						, CALL_TYPE 
 						, CALL_STATUS
 						, IMSI
 					FROM ',GT_DB,RUN,'.table_call_gsm
-					WHERE POS_FIRST_BSC =',BSC_ID,'
+					WHERE POS_FIRST_BSC_ID =',BSC_ID,'
 					AND DATA_HOUR >= ',STARTHOUR,' AND DATA_HOUR < ',ENDHOUR,'
 					GROUP BY  
 						DATA_DATE
@@ -72,8 +81,8 @@ BEGIN
 						,CALL_STATUS
 						,MOVING
 						,INDOOR
-						,POS_FIRST_BSC
-						,POS_FIRST_CELL
+						,POS_FIRST_BSC_ID
+						,POS_FIRST_CELL_ID
 						,IMSI');
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
@@ -211,13 +220,13 @@ BEGIN
 						 DATA_DATE
 						, INDOOR
 						, MOVING
-						, POS_FIRST_BSC AS BSC_ID
-						, POS_FIRST_CELL AS CELL_ID
+						, POS_FIRST_BSC_ID AS BSC_ID
+						, POS_FIRST_CELL_ID AS CELL_ID
 						, CALL_TYPE 
 						, CALL_STATUS
 						, IMSI
 					FROM ',GT_DB,RUN,'.table_call_gsm
-					WHERE POS_FIRST_BSC =',BSC_ID,'
+					WHERE POS_FIRST_BSC_ID =',BSC_ID,'
 					AND DATA_HOUR >= ',STARTHOUR,' AND DATA_HOUR < ',ENDHOUR,'
 					GROUP BY  
 						DATA_DATE
@@ -225,8 +234,8 @@ BEGIN
 						,CALL_STATUS
 						,MOVING
 						,INDOOR
-						,POS_FIRST_BSC
-						,POS_FIRST_CELL
+						,POS_FIRST_BSC_ID
+						,POS_FIRST_CELL_ID
 						,IMSI');
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
@@ -282,6 +291,143 @@ BEGIN
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
+	
+		SET @SqlCmd=CONCAT(' UPDATE ',GT_DB,'.table_tile_start_gsm_dy A,
+		(
+				    SELECT
+						 DATA_DATE
+						, BSC_ID
+						, CELL_ID
+						, COUNT(DISTINCT IMSI) AS IMSI_CNT
+					FROM ',GT_DB,RUN,'.`tmp_imsi_distinct_gsm_',WORKER_ID,'` 
+					GROUP BY  DATA_DATE
+						, BSC_ID
+						, CELL_ID
+		) B
+					SET 	A.IMSI_CNT = B.IMSI_CNT
+					WHERE   A.DATA_DATE = B.DATA_DATE
+						AND A.BSC_ID = B.BSC_ID
+						AND A.CELL_ID = B.CELL_ID');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+		SET @SqlCmd=CONCAT(' UPDATE ',GT_DB,'.table_tile_start_gsm_dy_def A,
+		(
+				    SELECT
+						 DATA_DATE
+						, BSC_ID
+						, CELL_ID
+						, COUNT(DISTINCT IMSI) AS IMSI_CNT
+					FROM ',GT_DB,RUN,'.`tmp_imsi_distinct_gsm_',WORKER_ID,'` 
+					GROUP BY  DATA_DATE
+						, BSC_ID
+						, CELL_ID
+		) B
+					SET 	A.IMSI_CNT = B.IMSI_CNT
+					WHERE   A.DATA_DATE = B.DATA_DATE
+						AND A.BSC_ID = B.BSC_ID
+						AND A.CELL_ID = B.CELL_ID');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	
+		SET STR_HR=0;
+		SET MAX_HR=24;
+		BEGIN	
+			SET v_k=STR_HR;
+			SET v_k_Diff=1;
+			WHILE v_k < MAX_HR DO
+			BEGIN
+				SET qry_tbl_name=CONCAT('table_tile_start_gsm','_',RIGHT(CONCAT(RIGHT(CONCAT('0',v_k),2)),2));
+				SET qry_tbl_name2=CONCAT('table_tile_start_gsm_c','_',RIGHT(CONCAT(RIGHT(CONCAT('0',v_k),2)),2));
+				SET qry_tbl_name3=CONCAT('table_tile_start_gsm_c_def','_',RIGHT(CONCAT(RIGHT(CONCAT('0',v_k),2)),2));
+				SET qry_tbl_name4=CONCAT('table_tile_start_gsm_def','_',RIGHT(CONCAT(RIGHT(CONCAT('0',v_k),2)),2));
+				
+					SET @SqlCmd=CONCAT(' UPDATE ',GT_DB,'.',qry_tbl_name,' A,
+					(
+							    SELECT
+									 DATA_DATE
+									, BSC_ID
+									, CELL_ID
+									, COUNT(DISTINCT IMSI) AS IMSI_CNT
+								FROM ',GT_DB,RUN,'.`tmp_imsi_distinct_gsm_',WORKER_ID,'` 
+								GROUP BY  DATA_DATE
+									, BSC_ID
+									, CELL_ID
+					) B
+								SET 	A.IMSI_CNT = B.IMSI_CNT
+								WHERE   A.DATA_DATE = B.DATA_DATE
+									AND A.BSC_ID = B.BSC_ID
+									AND A.CELL_ID = B.CELL_ID');
+					PREPARE Stmt FROM @SqlCmd;
+					EXECUTE Stmt;
+					DEALLOCATE PREPARE Stmt;
+	
+					SET @SqlCmd=CONCAT(' UPDATE ',GT_DB,'.',qry_tbl_name2,' A,
+					(
+							    SELECT
+									 DATA_DATE
+									, BSC_ID
+									, CELL_ID
+									, COUNT(DISTINCT IMSI) AS IMSI_CNT
+								FROM ',GT_DB,RUN,'.`tmp_imsi_distinct_gsm_',WORKER_ID,'` 
+								GROUP BY  DATA_DATE
+									, BSC_ID
+									, CELL_ID
+					) B
+								SET 	A.IMSI_CNT = B.IMSI_CNT
+								WHERE   A.DATA_DATE = B.DATA_DATE
+									AND A.BSC_ID = B.BSC_ID
+									AND A.CELL_ID = B.CELL_ID');
+					PREPARE Stmt FROM @SqlCmd;
+					EXECUTE Stmt;
+					DEALLOCATE PREPARE Stmt;
+					SET @SqlCmd=CONCAT(' UPDATE ',GT_DB,'.',qry_tbl_name3,' A,
+					(
+							    SELECT
+									 DATA_DATE
+									, BSC_ID
+									, CELL_ID
+									, COUNT(DISTINCT IMSI) AS IMSI_CNT
+								FROM ',GT_DB,RUN,'.`tmp_imsi_distinct_gsm_',WORKER_ID,'` 
+								GROUP BY  DATA_DATE
+									, BSC_ID
+									, CELL_ID
+					) B
+								SET 	A.IMSI_CNT = B.IMSI_CNT
+								WHERE   A.DATA_DATE = B.DATA_DATE
+									AND A.BSC_ID = B.BSC_ID
+									AND A.CELL_ID = B.CELL_ID');
+					PREPARE Stmt FROM @SqlCmd;
+					EXECUTE Stmt;
+					DEALLOCATE PREPARE Stmt;
+					SET @SqlCmd=CONCAT(' UPDATE ',GT_DB,'.',qry_tbl_name4,' A,
+					(
+							    SELECT
+									 DATA_DATE
+									, BSC_ID
+									, CELL_ID
+									, COUNT(DISTINCT IMSI) AS IMSI_CNT
+								FROM ',GT_DB,RUN,'.`tmp_imsi_distinct_gsm_',WORKER_ID,'` 
+								GROUP BY  DATA_DATE
+									, BSC_ID
+									, CELL_ID
+					) B
+								SET 	A.IMSI_CNT = B.IMSI_CNT
+								WHERE   A.DATA_DATE = B.DATA_DATE
+									AND A.BSC_ID = B.BSC_ID
+									AND A.CELL_ID = B.CELL_ID');
+					PREPARE Stmt FROM @SqlCmd;
+					EXECUTE Stmt;
+					DEALLOCATE PREPARE Stmt;
+	
+								
+					SET v_k=v_k+v_k_Diff;
+				
+			END;
+			END WHILE;
+		END;
 	END IF;
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Update_IMSI_CNT_GSM',CONCAT(' Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());

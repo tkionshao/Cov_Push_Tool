@@ -8,25 +8,13 @@ BEGIN
 	DECLARE GT_DB_START_MIN VARCHAR(10) DEFAULT SUBSTRING(RIGHT(GT_DB,18),12,2);
 	DECLARE WORKER_ID VARCHAR(10) DEFAULT CONNECTION_ID();
 	DECLARE CURRENT_NT_DB VARCHAR(50) DEFAULT CONCAT('gt_nt_',gt_strtok(GT_DB,3,'_'));
-	
+	DECLARE HUA_EXPORT_FLAG VARCHAR(10);
+	DECLARE SINGTEL_EXPORT_FLAG VARCHAR(10);
+	SELECT LOWER(`value`) INTO HUA_EXPORT_FLAG  FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'hua_export' ;
+	SELECT LOWER(`value`) INTO SINGTEL_EXPORT_FLAG  FROM gt_gw_main.integration_param WHERE gt_group = 'sp' AND gt_name = 'singtel_export' ;
  	SELECT SUBSTRING(SUBSTRING(GT_DB, 4,LENGTH(GT_DB)-4),1, LOCATE('_', SUBSTRING(GT_DB, 4,LENGTH(GT_DB)-4))-1) INTO RNC_ID;
  
- 
-	
- 
-	
-	
-	
-	
-	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_CallTable','UPDATE DATA_DATE AND DATA_HOUR', NOW());
-	
-	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.table_cell_usage SET 
-			`DATA_DATE` = CONCAT(DATE(DATE_TIME),'' 00:00:00''),
-			`DATA_HOUR` = HOUR(DATE_TIME);');
-	PREPARE Stmt FROM @SqlCmd; 
-	EXECUTE Stmt; 
-	DEALLOCATE PREPARE Stmt;
 	
 	SET @SqlCmd=CONCAT('UPDATE ',GT_DB,'.table_nbap_cmr SET 
 			`DATA_DATE` = CONCAT(DATE(DATE_TIME),'' 00:00:00''),
@@ -35,8 +23,13 @@ BEGIN
 	EXECUTE Stmt; 
 	DEALLOCATE PREPARE Stmt;
 	
+	IF HUA_EXPORT_FLAG = 'true' THEN
+		CALL gt_gw_main.`SP_Sub_Table_Call_Export`(GT_DB,2,GT_COVMO);
+	END IF;
 	
-	
+	IF SINGTEL_EXPORT_FLAG = 'true' THEN
+		CALL gt_gw_main.`SP_NDC_IMSI_export`(GT_DB,'//data//Mysql_Export//',2,GT_COVMO);
+	END IF;
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_CallTable',CONCAT('Done2: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
 	
 END$$

@@ -6,7 +6,7 @@ BEGIN
 	DECLARE START_TIME DATETIME DEFAULT SYSDATE();
 	DECLARE CURRENT_NT_DB VARCHAR(50) DEFAULT CONCAT('gt_nt_',gt_strtok(GT_DB,3,'_'));
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO','START ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Update_NBO','Start ', NOW());
 	CALL SP_Sub_Set_Session_Param(GT_DB);
 	
 	

@@ -18,8 +18,10 @@ BEGIN
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
 		INSERT INTO gt_gw_main.SP_LOG VALUES(GT_DB,'SP_Import_IMSI',CONCAT(WORKER_ID,' SQLEXCEPTION cost:',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' sec.'), NOW());
+		
+		SELECT '{tech:”ALL ”, name:”SP-Report”, status:”2”,message_id: “null”, message: “SP_Import_IMSI Failed check gt_gw_main.SP_LOG”, log_path: “”}' AS message;
 	END;
-	SET SESSION group_concat_max_len=1024000; 
+	SET @@session.group_concat_max_len = @@global.max_allowed_packet;
 	INSERT INTO gt_gw_main.SP_LOG VALUES(GT_DB,'SP_Import_IMSI',CONCAT(WORKER_ID,' START'), START_TIME);
 	SET @SqlCmd=CONCAT('INSERT INTO `gt_global_imsi`.table_running_task 
 				(`EXECUTE_TIME`,`WORKER_ID`)
@@ -35,7 +37,7 @@ BEGIN
 	
 	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE ',GT_DB,'.tmp_diff_table_date AS 
 				SELECT TABLE_NAME AS DIFF_TABLE_NAME,gt_strtok(TABLE_NAME,5,''_'') AS DIFF_DATE FROM information_schema.`TABLES`
-				WHERE TABLE_SCHEMA=''',GT_DB,''' AND TABLE_NAME LIKE ''table_imsi_diff_%'' AND TABLE_ROWS IS NOT NULL
+				WHERE TABLE_SCHEMA=''',GT_DB,''' AND TABLE_NAME LIKE ''table_imsi_diff_%'' AND TABLE_ROWS IS NOT NULL ORDER BY DIFF_DATE
 			;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
@@ -57,7 +59,7 @@ BEGIN
 		SET @SqlCmd=CONCAT('SELECT GROUP_CONCAT(DISTINCT DIFF_DATE SEPARATOR ''|'') INTO @DATE_STR
 					FROM ',GT_DB,'.tmp_diff_table_date 
 					WHERE DIFF_DATE NOT IN ',@H_DATE,'
-					ORDER BY DIFF_DATE;');
+					;');
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
@@ -97,6 +99,33 @@ BEGIN
 			EXECUTE Stmt;
 			DEALLOCATE PREPARE Stmt; 
 			INSERT INTO gt_gw_main.SP_LOG VALUES(GT_DB,'SP_Import_IMSI',CONCAT('INSERT table ',GT_DB,'.table_imsi_diff_',SPLIT_STR(@PU_STR,'|',@j_i),' cost:',TIMESTAMPDIFF(SECOND,STEP_START_TIME,SYSDATE()),' sec.'), NOW());
+			
+			SET @SqlCmd=CONCAT('SELECT COUNT(*) INTO @table_imsi_pu_bkp FROM information_schema.`TABLES`
+								WHERE TABLE_SCHEMA=''gt_global_imsi''
+								AND TABLE_NAME=''table_imsi_pu_bkp'';');
+			PREPARE Stmt FROM @SqlCmd;
+			EXECUTE Stmt;
+			DEALLOCATE PREPARE Stmt;
+	
+			IF @table_imsi_pu_bkp=0 THEN 
+	
+			SET @SqlCmd=CONCAT('CREATE TABLE gt_global_imsi.table_imsi_pu_bkp AS
+						SELECT IMSI,DATA_DATE,PU_ID,DATA_DATE_TS,TECH_MASK
+						FROM gt_global_imsi.table_imsi_pu
+						;');
+			PREPARE Stmt FROM @SqlCmd;
+			EXECUTE Stmt;
+			DEALLOCATE PREPARE Stmt;
+			END IF;
+	
+			SET @SqlCmd=CONCAT('INSERT IGNORE INTO `gt_global_imsi`.`table_imsi_pu_bkp`
+						(`IMSI`,`DATA_DATE`,`PU_ID`,`DATA_DATE_TS`,`TECH_MASK`)
+						SELECT `IMSI`,`DATA_DATE`,`PU_ID`,`DATA_DATE_TS`,`TECH_MASK`
+						FROM ',GT_DB,'.table_imsi_diff_',SPLIT_STR(@PU_STR,'|',@j_i),';');
+			PREPARE Stmt FROM @SqlCmd;
+			EXECUTE Stmt;
+			DEALLOCATE PREPARE Stmt; 
+			INSERT INTO gt_gw_main.SP_LOG VALUES(GT_DB,'SP_Import_IMSI',CONCAT('INSERT bkp_table ',GT_DB,'.table_imsi_diff_',SPLIT_STR(@PU_STR,'|',@j_i),' cost:',TIMESTAMPDIFF(SECOND,STEP_START_TIME,SYSDATE()),' sec.'), NOW());
 			
 			SET @SqlCmd=CONCAT('DROP TABLE IF EXISTS ',GT_DB,'.table_imsi_diff_',SPLIT_STR(@PU_STR,'|',@j_i),';');
 			PREPARE Stmt FROM @SqlCmd;

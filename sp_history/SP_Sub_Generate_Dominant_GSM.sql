@@ -20,7 +20,7 @@ BEGIN
 	SET SESSION sort_buffer_size = 1024*1024*1024; 
 	SET SESSION read_buffer_size=1024*1024*1024;
 	
-	SELECT RIGHT(gt_strtok(GT_DB,2,'_'),3) INTO BSC_ID;
+	SELECT gt_strtok(GT_DB,2,'_') INTO BSC_ID;
 	
 	SELECT REPLACE(GT_DB,SH_EH,'0000_0000') INTO GT_DB;
 	
@@ -37,7 +37,7 @@ BEGIN
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Start_GSM','CREATE temp TABLE tmp_table_tile_dominant_cell_gsm ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Start_GSM','Create temp table tmp_table_tile_dominant_cell_gsm ', NOW());
 	
 	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE  IF EXISTS ',GT_DB,RUN,'.tmp_table_tile_dominant_gsm_',WORKER_ID,';');
 	PREPARE stmt FROM @sqlcmd;
@@ -50,7 +50,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Start_GSM','INSERT INTO tmp_table_tile_dominant_cell_gsm ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Start_GSM','Insert into tmp_table_tile_dominant_cell_gsm ', NOW());
 	
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.tmp_table_tile_dominant_gsm_',WORKER_ID,'
 				(
@@ -113,7 +113,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 		
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Start_GSM','INSERT INTO table_tile_dominant_cell_gsm ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Start_GSM','Insert into table_tile_dominant_cell_gsm ', NOW());
 	
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.table_tile_dominant_cell_gsm
 				(
@@ -166,7 +166,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Start_GSM','INSERT INTO table_tile_dominant_cell_gsm_dy ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Start_GSM','Insert into table_tile_dominant_cell_gsm_dy ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.table_tile_dominant_cell_gsm_dy
 				(
 			DATA_DATE,

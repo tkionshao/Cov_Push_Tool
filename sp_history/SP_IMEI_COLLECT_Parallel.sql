@@ -14,6 +14,8 @@ BEGIN
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
+		
+		SELECT '{tech:”ALL ”, name:”SP-Report”, status:”2”,message_id: “null”, message: “SP_IMEI_COLLECT_Parallel Failed Table tmp_materialization_',PID,' doesnt exist. Check necessary table first.”, log_path: “”}' AS message;
 	END;
 	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS tmp_materialization_',PID,';');
 	PREPARE Stmt FROM @SqlCmd;
@@ -22,7 +24,7 @@ BEGIN
 	
 	SET @SqlCmd=CONCAT('CREATE TEMPORARY TABLE tmp_materialization_',PID,' 
 				(
-					`TAC` varchar(8) DEFAULT NULL
+					`TAC` varchar(8)
 -- 					,PRIMARY KEY (`TAC`)
 				)	
 			ENGINE=MYISAM;');

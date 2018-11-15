@@ -31,17 +31,30 @@ BEGIN
 		SET RUN = '';
 	END IF;
 	
-	SET @SqlCmd=CONCAT('SELECT att_value INTO @ZOOM_LEVEL FROM ',GT_DB,RUN,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+	SET @SqlCmd=CONCAT('SELECT att_value INTO @SYS_CONFIG_TILE FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
+		
+	IF gt_covmo_csv_count(@SYS_CONFIG_TILE,',') =3 THEN
+		
+		SET @SqlCmd=CONCAT('SELECT gt_covmo_csv_get(att_value,3) INTO @ZOOM_LEVEL FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	ELSE 
+		SET @SqlCmd=CONCAT('SELECT att_value INTO @ZOOM_LEVEL FROM ',CURRENT_NT_DB,'.`sys_config` WHERE `group_name`=''system'' AND att_name = ''MapResolution'';');
+		PREPARE Stmt FROM @SqlCmd;
+		EXECUTE Stmt;
+		DEALLOCATE PREPARE Stmt;
+	END IF;
 	
 	SET @SqlCmd=CONCAT('ALTER TABLE ',GT_DB,RUN,'.table_tile_domiant_cell TRUNCATE PARTITION h',PARTITION_ID,';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Dominat_Cell','CREATE temp TABLE tmp_table_tile_domiant_cell ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Dominat_Cell','Create temp table tmp_table_tile_domiant_cell ', NOW());
 	
 	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE  IF EXISTS ',GT_DB,RUN,'.tmp_table_tile_domiant_cell_',WORKER_ID,';');
 	PREPARE stmt FROM @sqlcmd;
@@ -54,13 +67,11 @@ BEGIN
 					`RNC_ID` MEDIUMINT(9) DEFAULT NULL,
 					`CELL_ID` MEDIUMINT(9) DEFAULT NULL,
 					`TILE_ID` BIGINT(20) DEFAULT NULL,
-					`CELL_NAME` VARCHAR(50) CHARACTER SET utf8 DEFAULT NULL,
+					`CELL_NAME` varchar(50) CHARACTER SET utf8 DEFAULT NULL,
 					`INDOOR` TINYINT(4) DEFAULT NULL,
 					`MOVING` TINYINT(4) DEFAULT NULL,
 					`FREQUENCY` SMALLINT(6) DEFAULT NULL,
 					`UARFCN` MEDIUMINT(9) DEFAULT NULL,
-					`CELL_LON` DOUBLE DEFAULT NULL,
-					`CELL_LAT` DOUBLE DEFAULT NULL,
 					`POS_FIRST_RSCP_SUM` INT(11) DEFAULT ''0'',
 					`POS_FIRST_RSCP_CNT` DOUBLE DEFAULT NULL,
 					`POS_FIRST_ECN0_SUM` INT(11) DEFAULT ''0'',
@@ -71,7 +82,7 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Dominat_Cell','INSERT INTO tmp_table_tile_domiant_cell ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Dominat_Cell','Insert into tmp_table_tile_domiant_cell ', NOW());
 	
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.`tmp_table_tile_domiant_cell_',WORKER_ID,'`
 					(`DATA_DATE`,
@@ -83,8 +94,6 @@ BEGIN
 					`MOVING`,
 					`FREQUENCY`,
 					`UARFCN`,
-					`CELL_LON`,
-					`CELL_LAT`,
 					`POS_FIRST_RSCP_SUM`,
 					`POS_FIRST_RSCP_CNT`,
 					`POS_FIRST_ECN0_SUM`,
@@ -100,14 +109,12 @@ BEGIN
 					, MOVING
 					, FREQUENCY
 					, UARFCN
-					, CELL_LON
-					, CELL_LAT
-					, SUM(BEST_RSCP_1)*SUM(BEST_RSCP_1_CNT) AS POS_FIRST_RSCP_SUM
+					, SUM(BEST_RSCP_1) AS POS_FIRST_RSCP_SUM
 					, SUM(BEST_RSCP_1_CNT) AS POS_FIRST_RSCP_CNT
-					, SUM(BEST_ECN0_1)*SUM(BEST_ECN0_1_CNT) AS POS_FIRST_ECN0_SUM
+					, SUM(BEST_ECN0_1) AS POS_FIRST_ECN0_SUM
 					, SUM(BEST_ECN0_1_CNT) AS POS_FIRST_ECN0_CNT
 					, SUM(CALL_CNT) AS CALL_CNT
-				FROM ',GT_DB,RUN,'.table_tile_start
+				FROM ',GT_DB,'.table_tile_start
 				WHERE DATA_HOUR >= ',STARTHOUR,' AND DATA_HOUR < ',ENDHOUR,'
 				GROUP BY  DATA_DATE
 					, DATA_HOUR
@@ -118,14 +125,12 @@ BEGIN
 					, MOVING
 					, FREQUENCY
 					, UARFCN
-					, CELL_LON
-					, CELL_LAT
 				ORDER BY NULL');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Dominat_Cell','UPDATE cell infor', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Dominat_Cell','Update cell infor', NOW());
 	SET @SqlCmd=CONCAT(' UPDATE ',GT_DB,RUN,'.`tmp_table_tile_domiant_cell_',WORKER_ID,'` A, 
 				    ',CURRENT_NT_DB,'.nt_current B
 			     SET A.CELL_NAME=B.CELL_NAME
@@ -136,21 +141,66 @@ BEGIN
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;	
 		
-	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Dominat_Cell','INSERT INTO table_tile_domiant_cell ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(O_GT_DB,'SP_Sub_Generate_Dominat_Cell','Insert into table_tile_domiant_cell ', NOW());
 	SET @SqlCmd=CONCAT('INSERT INTO  ',GT_DB,RUN,'.table_tile_domiant_cell
 				(`DATA_DATE`,`DATA_HOUR`,`RNC_ID`,`CELL_ID`,`TILE_ID`,`CELL_NAME`,`INDOOR`,
-				`MOVING`,`FREQUENCY`,`UARFCN`,`CELL_LON`,`CELL_LAT`,`POS_FIRST_RSCP_SUM`,
+				`MOVING`,`FREQUENCY`,`UARFCN`,`POS_FIRST_RSCP_SUM`,
 				`POS_FIRST_RSCP_CNT`,`POS_FIRST_ECN0_SUM`,`POS_FIRST_ECN0_CNT`,`CALL_CNT`)
 			SELECT 
 				`DATA_DATE`,`DATA_HOUR`,`RNC_ID`,`CELL_ID`,`TILE_ID`,`CELL_NAME`,`INDOOR`,
-				`MOVING`,`FREQUENCY`,`UARFCN`,`CELL_LON`,`CELL_LAT`,`POS_FIRST_RSCP_SUM`,
+				`MOVING`,`FREQUENCY`,`UARFCN`,`POS_FIRST_RSCP_SUM`,
 				`POS_FIRST_RSCP_CNT`,`POS_FIRST_ECN0_SUM`,`POS_FIRST_ECN0_CNT`,`CALL_CNT`
 			FROM ',GT_DB,RUN,'.`tmp_table_tile_domiant_cell_',WORKER_ID,'`;');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;
+	SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.table_tile_domiant_cell_dy
+			(
+				DATA_DATE,
+				RNC_ID,
+				CELL_ID,
+				TILE_ID,
+				CELL_NAME,
+				INDOOR,
+				MOVING,
+				FREQUENCY,
+				UARFCN,
+				POS_FIRST_RSCP_SUM,
+				POS_FIRST_RSCP_CNT,
+				POS_FIRST_ECN0_SUM,
+				POS_FIRST_ECN0_CNT,
+				CALL_CNT
+			)
+			SELECT
+				DATA_DATE
+				,RNC_ID
+				,CELL_ID
+				,TILE_ID
+				,CELL_NAME
+				,INDOOR
+				,MOVING
+				,FREQUENCY
+				,UARFCN
+				,IFNULL(SUM(POS_FIRST_RSCP_SUM),0) AS POS_FIRST_RSCP_SUM
+				,IFNULL(SUM(POS_FIRST_RSCP_CNT),0) AS POS_FIRST_RSCP_CNT
+				,IFNULL(SUM(POS_FIRST_ECN0_SUM),0) AS POS_FIRST_ECN0_SUM
+				,IFNULL(SUM(POS_FIRST_ECN0_CNT),0) AS POS_FIRST_ECN0_CNT
+				,IFNULL(SUM(CALL_CNT),0) AS CALL_CNT
+			FROM ',GT_DB,RUN,'.`tmp_table_tile_domiant_cell_',WORKER_ID,'`
+			GROUP BY DATA_DATE,RNC_ID,CELL_ID,TILE_ID,INDOOR,MOVING,FREQUENCY,UARFCN
+			ORDER BY NULL
+			ON DUPLICATE KEY UPDATE
+				',GT_DB,'.table_tile_domiant_cell_dy.POS_FIRST_RSCP_SUM=',GT_DB,'.table_tile_domiant_cell_dy.POS_FIRST_RSCP_SUM+VALUES(POS_FIRST_RSCP_SUM),
+				',GT_DB,'.table_tile_domiant_cell_dy.POS_FIRST_RSCP_CNT=',GT_DB,'.table_tile_domiant_cell_dy.POS_FIRST_RSCP_CNT+VALUES(POS_FIRST_RSCP_CNT),
+				',GT_DB,'.table_tile_domiant_cell_dy.POS_FIRST_ECN0_SUM=',GT_DB,'.table_tile_domiant_cell_dy.POS_FIRST_ECN0_SUM+VALUES(POS_FIRST_ECN0_SUM),
+				',GT_DB,'.table_tile_domiant_cell_dy.POS_FIRST_ECN0_CNT=',GT_DB,'.table_tile_domiant_cell_dy.POS_FIRST_ECN0_CNT+VALUES(POS_FIRST_ECN0_CNT),
+				',GT_DB,'.table_tile_domiant_cell_dy.CALL_CNT=',GT_DB,'.table_tile_domiant_cell_dy.CALL_CNT+VALUES(CALL_CNT)
+			;');
+	PREPARE Stmt FROM @SqlCmd;
+	EXECUTE Stmt;
+	DEALLOCATE PREPARE Stmt;
 	
-	SET @SqlCmd=CONCAT('DROP TEMPORARY TABLE IF EXISTS   ',GT_DB,RUN,'.tmp_table_tile_ul_thru_high_dy_c_def_',WORKER_ID,' ');
+	SET @SqlCmd=CONCAT('Drop TEMPORARY table if exists ',GT_DB,RUN,'.tmp_table_tile_domiant_cell_',WORKER_ID,';');
 	PREPARE Stmt FROM @SqlCmd;
 	EXECUTE Stmt;
 	DEALLOCATE PREPARE Stmt;

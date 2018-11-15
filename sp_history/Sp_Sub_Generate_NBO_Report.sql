@@ -9,7 +9,7 @@ BEGIN
 	
 	SELECT gt_strtok(GT_DB,2,'_') INTO RNC_ID;
 	
-	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'Sp_Sub_Generate_NBO_Report','START ', NOW());
+	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'Sp_Sub_Generate_NBO_Report','Start ', NOW());
 	
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'Sp_Sub_Generate_NBO_Report','CREATE TABLE-tmp_nbr_intra', NOW());
 	
@@ -163,7 +163,7 @@ BEGIN
 					result.cell_id AS CELL_ID, 
 					result.nbr_rnc_id AS NBR_RNC_ID, 
 					result.nbr_cell_id AS NBR_CELL_ID, 
-					IF(result.cm_nbr_state=1, ''yes'', ''NO'') AS IS_CM_NBR, 
+					IF(result.cm_nbr_state=1, ''yes'', ''no'') AS IS_CM_NBR, 
 					result.rscp AS RSCP, 
 					result.ecn0 AS ECN0, 
 					result.distance AS DISTANCE, 

@@ -75,7 +75,9 @@ BEGIN
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
-		SELECT 'No Table' AS IsSuccess;		
+		SELECT 'No Table' AS IsSuccess;	
+	
+		SELECT '{tech:”ALL ”, name:”SP-Report”, status:”2”,message_id: “null”, message: “SP_KPI_multi_IMSI_Trace Failed Table does not exist. Check necessary table first”, log_path: “”}' AS message;	
 	END;		
 				
 	INSERT INTO gt_gw_main.sp_log VALUES('gt_gw_main','SP_KPI_multi_IMSI_TRACE',CONCAT(KPI_ID,' Start CREATE TABLE tbl_',SESSION_NAME), NOW());	

@@ -45,6 +45,5 @@ BEGIN
 		DEALLOCATE PREPARE Stmt; 
 	END IF;
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Auto_Generate_View',CONCAT('Done: ',TIMESTAMPDIFF(SECOND,START_TIME,SYSDATE()),' seconds.'), NOW());
-	
 END$$
 DELIMITER ;

@@ -52,17 +52,17 @@ BEGIN
 	END IF;
 	
 	
-	if RULE != '' then
-		set rule_range_check = gt_covmo_csv_count(RULE,'to');
-		if rule_range_check > 1 then
-			set d_min = gt_strtok(RULE,1,'to');
+	IF RULE != '' THEN
+		SET rule_range_check = gt_covmo_csv_count(RULE,'to');
+		IF rule_range_check > 1 THEN
+			SET d_min = gt_strtok(RULE,1,'to');
 			SET d_max = gt_strtok(RULE,2,'to');
 			SET @SqlCmd=CONCAT('SELECT COUNT(*) INTO @R1_CHECK_CNT FROM ',GT_DB,'.',TBL,' WHERE ',COL,' > ',d_max,' or ',COL,' < ',d_min,';');
 			PREPARE Stmt FROM @SqlCmd;
 			EXECUTE Stmt;
 			DEALLOCATE PREPARE Stmt; 
 			
-			if @R1_CHECK_CNT > 0 then
+			IF @R1_CHECK_CNT > 0 THEN
 				
 				SET @SqlCmd=CONCAT('INSERT INTO ',GT_DB,'.nt_log (ID,CELL_ID,TBL_NAME,COL_NAME,LOG_TYPE,DUMP_LOG)
 						SELECT
@@ -86,8 +86,8 @@ BEGIN
 				PREPARE Stmt FROM @SqlCmd;
 				EXECUTE Stmt;
 				DEALLOCATE PREPARE Stmt; 
-			end if;
-		else
+			END IF;
+		ELSE
 	
 			SET @SqlCmd=CONCAT('SELECT COUNT(*) INTO @R2_CHECK_CNT FROM ',GT_DB,'.',TBL,' WHERE ',COL,' ',RULE,';');
 			PREPARE Stmt FROM @SqlCmd;
@@ -119,7 +119,7 @@ BEGIN
 				EXECUTE Stmt;
 				DEALLOCATE PREPARE Stmt; 
 			END IF;
-		end if;
-	end if;
+		END IF;
+	END IF;
 END$$
 DELIMITER ;

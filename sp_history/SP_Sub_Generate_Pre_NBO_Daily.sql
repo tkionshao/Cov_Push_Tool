@@ -26,6 +26,7 @@ BEGIN
 		...sample';
 		
 	DECLARE OTHER_STR_COL_IN VARCHAR(10000);
+	DECLARE DUPLICATE_KEY_UPDATE VARCHAR(5000);
 		
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Generate_Pre_NBO_Daily','Start', START_TIME);
 	INSERT INTO gt_gw_main.sp_log VALUES(GT_DB,'SP_Sub_Generate_Pre_NBO_Daily','prepare config', NOW());
@@ -131,6 +132,89 @@ BEGIN
 		PREPARE Stmt FROM @SqlCmd;
 		EXECUTE Stmt;
 		DEALLOCATE PREPARE Stmt;
+		
+		IF TECHNOLOGY = 'UMTS' THEN
+			IF TABLE_NAME = 'opt_nbr_relation' THEN
+				SET DUPLICATE_KEY_UPDATE = CONCAT(@rpt_target_table,'.HO_CNT=',@rpt_target_table,'.HO_CNT+VALUES(HO_CNT),
+					',@rpt_target_table,'.MS_MEAS_CNT=',@rpt_target_table,'.MS_MEAS_CNT+VALUES(MS_MEAS_CNT),
+					',@rpt_target_table,'.MS_RSCP_SUM=',@rpt_target_table,'.MS_RSCP_SUM+VALUES(MS_RSCP_SUM),
+					',@rpt_target_table,'.MS_ECN0_SUM=',@rpt_target_table,'.MS_ECN0_SUM+VALUES(MS_ECN0_SUM),
+					',@rpt_target_table,'.BEST_EVENT_CNT=',@rpt_target_table,'.BEST_EVENT_CNT+VALUES(BEST_EVENT_CNT),
+					',@rpt_target_table,'.SHO_ATTEMPT=',@rpt_target_table,'.SHO_ATTEMPT+VALUES(SHO_ATTEMPT),
+					',@rpt_target_table,'.SHO_FAILURE=',@rpt_target_table,'.SHO_FAILURE+VALUES(SHO_FAILURE),
+					',@rpt_target_table,'.SOHO_ATTEMPT=',@rpt_target_table,'.SOHO_ATTEMPT+VALUES(SOHO_ATTEMPT),
+					',@rpt_target_table,'.SOHO_FAILURE=',@rpt_target_table,'.SOHO_FAILURE+VALUES(SOHO_FAILURE),
+					',@rpt_target_table,'.IFHO_ATTEMPT=',@rpt_target_table,'.IFHO_ATTEMPT+VALUES(IFHO_ATTEMPT),
+					',@rpt_target_table,'.IFHO_FAILURE=',@rpt_target_table,'.IFHO_FAILURE+VALUES(IFHO_FAILURE),
+					',@rpt_target_table,'.MEAS_RSCP_GAP_CNT=',@rpt_target_table,'.MEAS_RSCP_GAP_CNT+VALUES(MEAS_RSCP_GAP_CNT),
+					',@rpt_target_table,'.MEAS_RSCP_GAP_SUM=',@rpt_target_table,'.MEAS_RSCP_GAP_SUM+VALUES(MEAS_RSCP_GAP_SUM)');
+			ELSEIF TABLE_NAME = 'opt_nbr_relation_irat2g' THEN
+				SET DUPLICATE_KEY_UPDATE = CONCAT(@rpt_target_table,'.HO_CNT=',@rpt_target_table,'.HO_CNT+VALUES(HO_CNT),
+					',@rpt_target_table,'.MS_MEAS_CNT=',@rpt_target_table,'.MS_MEAS_CNT+VALUES(MS_MEAS_CNT),
+					',@rpt_target_table,'.MS_RSSI_SUM=',@rpt_target_table,'.MS_RSSI_SUM+VALUES(MS_RSSI_SUM)');
+			END IF;
+		ELSEIF TECHNOLOGY = 'GSM' THEN
+			SET DUPLICATE_KEY_UPDATE = CONCAT(@rpt_target_table,'.HO_ALL_CNT=',@rpt_target_table,'.HO_ALL_CNT+VALUES(HO_ALL_CNT),
+				',@rpt_target_table,'.HO_SUCC_CNT=',@rpt_target_table,'.HO_SUCC_CNT+VALUES(HO_SUCC_CNT),
+				',@rpt_target_table,'.HO_FAIL_CNT=',@rpt_target_table,'.HO_FAIL_CNT+VALUES(HO_FAIL_CNT),
+				',@rpt_target_table,'.HO_DROP_CNT=',@rpt_target_table,'.HO_DROP_CNT+VALUES(HO_DROP_CNT),
+				',@rpt_target_table,'.MEAS_RXLEV=',@rpt_target_table,'.MEAS_RXLEV+VALUES(MEAS_RXLEV),
+				',@rpt_target_table,'.MEAS_CNT=',@rpt_target_table,'.MEAS_CNT+VALUES(MEAS_CNT),
+				',@rpt_target_table,'.SERV_RXLEV=',@rpt_target_table,'.SERV_RXLEV+VALUES(SERV_RXLEV),
+				',@rpt_target_table,'.SERV_RXLEV_CNT=',@rpt_target_table,'.SERV_RXLEV_CNT+VALUES(SERV_RXLEV_CNT),
+				',@rpt_target_table,'.SERV_RXQUAL=',@rpt_target_table,'.SERV_RXQUAL+VALUES(SERV_RXQUAL),
+				',@rpt_target_table,'.SERV_RXQUAL_CNT=',@rpt_target_table,'.SERV_RXQUAL_CNT+VALUES(SERV_RXQUAL_CNT)');
+		ELSEIF TECHNOLOGY = 'LTE' THEN
+			IF TABLE_NAME = 'opt_nbr_inter_intra_lte' THEN
+				SET DUPLICATE_KEY_UPDATE = CONCAT(@rpt_target_table,'.DISTANCE_METER=IF(',@rpt_target_table,'.DATA_DATE>VALUES(DATA_DATE),',@rpt_target_table,'.DISTANCE_METER,VALUES(DISTANCE_METER)),
+					',@rpt_target_table,'.HO_COUNT=',@rpt_target_table,'.HO_COUNT+VALUES(HO_COUNT),
+					',@rpt_target_table,'.PINGPONG_HO_CNT=',@rpt_target_table,'.PINGPONG_HO_CNT+VALUES(PINGPONG_HO_CNT),
+					',@rpt_target_table,'.HO_FAIL_CNT=',@rpt_target_table,'.HO_FAIL_CNT+VALUES(HO_FAIL_CNT),
+					',@rpt_target_table,'.HO_RE_EST_CNT=',@rpt_target_table,'.HO_RE_EST_CNT+VALUES(HO_RE_EST_CNT),
+					',@rpt_target_table,'.TA_HO_SUM=',@rpt_target_table,'.TA_HO_SUM+VALUES(TA_HO_SUM),
+					',@rpt_target_table,'.TA_HO_CNT=',@rpt_target_table,'.TA_HO_CNT+VALUES(TA_HO_CNT),
+					',@rpt_target_table,'.MEAS_COUNT=',@rpt_target_table,'.MEAS_COUNT+VALUES(MEAS_COUNT),
+					',@rpt_target_table,'.RSRP_SUM=',@rpt_target_table,'.RSRP_SUM+VALUES(RSRP_SUM),
+					',@rpt_target_table,'.RSRQ_SUM=',@rpt_target_table,'.RSRQ_SUM+VALUES(RSRQ_SUM),
+					',@rpt_target_table,'.RSRP_CNT=',@rpt_target_table,'.RSRP_CNT+VALUES(RSRP_CNT),
+					',@rpt_target_table,'.RSRQ_CNT=',@rpt_target_table,'.RSRQ_CNT+VALUES(RSRQ_CNT),
+					',@rpt_target_table,'.BEST_MEAS_CNT=',@rpt_target_table,'.BEST_MEAS_CNT+VALUES(BEST_MEAS_CNT),
+					',@rpt_target_table,'.SERVING_RSRP_SUM=',@rpt_target_table,'.SERVING_RSRP_SUM+VALUES(SERVING_RSRP_SUM),
+					',@rpt_target_table,'.SERVING_RSRQ_SUM=',@rpt_target_table,'.SERVING_RSRQ_SUM+VALUES(SERVING_RSRQ_SUM),
+					',@rpt_target_table,'.SERVING_RSRP_CNT=',@rpt_target_table,'.SERVING_RSRP_CNT+VALUES(SERVING_RSRP_CNT),
+					',@rpt_target_table,'.SERVING_RSRQ_CNT=',@rpt_target_table,'.SERVING_RSRQ_CNT+VALUES(SERVING_RSRQ_CNT),
+					',@rpt_target_table,'.HO_INTERRUP_TIME=',@rpt_target_table,'.HO_INTERRUP_TIME+VALUES(HO_INTERRUP_TIME),
+					',@rpt_target_table,'.HO_INTERRUP_CNT=',@rpt_target_table,'.HO_INTERRUP_CNT+VALUES(HO_INTERRUP_CNT),
+					',@rpt_target_table,'.TARGET_TA_SUM=',@rpt_target_table,'.TARGET_TA_SUM+VALUES(TARGET_TA_SUM),
+					',@rpt_target_table,'.TARGET_TA_CNT=',@rpt_target_table,'.TARGET_TA_CNT+VALUES(TARGET_TA_CNT),
+					',@rpt_target_table,'.HO_RSRP_SUM=',@rpt_target_table,'.HO_RSRP_SUM+VALUES(HO_RSRP_SUM),
+					',@rpt_target_table,'.HO_RSRP_CNT=',@rpt_target_table,'.HO_RSRP_CNT+VALUES(HO_RSRP_CNT),
+					',@rpt_target_table,'.HO_RSRQ_SUM=',@rpt_target_table,'.HO_RSRQ_SUM+VALUES(HO_RSRQ_SUM),
+					',@rpt_target_table,'.HO_RSRQ_CNT=',@rpt_target_table,'.HO_RSRQ_CNT+VALUES(HO_RSRQ_CNT),
+					',@rpt_target_table,'.HO_SERVING_RSRP_SUM=',@rpt_target_table,'.HO_SERVING_RSRP_SUM+VALUES(HO_SERVING_RSRP_SUM),
+					',@rpt_target_table,'.HO_SERVING_RSRP_CNT=',@rpt_target_table,'.HO_SERVING_RSRP_CNT+VALUES(HO_SERVING_RSRP_CNT),
+					',@rpt_target_table,'.HO_SERVING_RSRQ_SUM=',@rpt_target_table,'.HO_SERVING_RSRQ_SUM+VALUES(HO_SERVING_RSRQ_SUM),
+					',@rpt_target_table,'.HO_SERVING_RSRQ_CNT=',@rpt_target_table,'.HO_SERVING_RSRQ_CNT+VALUES(HO_SERVING_RSRQ_CNT)');
+			ELSEIF TABLE_NAME = 'opt_nbr_irat3g_lte' THEN
+				SET DUPLICATE_KEY_UPDATE = CONCAT(@rpt_target_table,'.DISTANCE_METER=IF(',@rpt_target_table,'.DATA_DATE>VALUES(DATA_DATE),',@rpt_target_table,'.DISTANCE_METER,VALUES(DISTANCE_METER)),
+					',@rpt_target_table,'.SERVING_TA_SUM=',@rpt_target_table,'.SERVING_TA_SUM+VALUES(SERVING_TA_SUM),
+					',@rpt_target_table,'.SERVING_TA_CNT=',@rpt_target_table,'.SERVING_TA_CNT+VALUES(SERVING_TA_CNT),
+					',@rpt_target_table,'.SERVING_RSRP_SUM=',@rpt_target_table,'.SERVING_RSRP_SUM+VALUES(SERVING_RSRP_SUM),
+					',@rpt_target_table,'.SERVING_RSRQ_SUM=',@rpt_target_table,'.SERVING_RSRQ_SUM+VALUES(SERVING_RSRQ_SUM),
+					',@rpt_target_table,'.SERVING_RSRP_CNT=',@rpt_target_table,'.SERVING_RSRP_CNT+VALUES(SERVING_RSRP_CNT),
+					',@rpt_target_table,'.SERVING_RSRQ_CNT=',@rpt_target_table,'.SERVING_RSRQ_CNT+VALUES(SERVING_RSRQ_CNT),
+					',@rpt_target_table,'.HO_CNT=',@rpt_target_table,'.HO_CNT+VALUES(HO_CNT),
+					',@rpt_target_table,'.HO_FAIL_CNT=',@rpt_target_table,'.HO_FAIL_CNT+VALUES(HO_FAIL_CNT),
+					',@rpt_target_table,'.MEAS_CNT=',@rpt_target_table,'.MEAS_CNT+VALUES(MEAS_CNT),
+					',@rpt_target_table,'.MEAS_RSCP_SUM=',@rpt_target_table,'.MEAS_RSCP_SUM+VALUES(MEAS_RSCP_SUM),
+					',@rpt_target_table,'.MEAS_ECN0_SUM=',@rpt_target_table,'.MEAS_ECN0_SUM+VALUES(MEAS_ECN0_SUM)');
+			ELSEIF TABLE_NAME = 'opt_cf_pre_agg_report_lte' THEN
+				SET DUPLICATE_KEY_UPDATE = CONCAT(@rpt_target_table,'.MR_COUNT=',@rpt_target_table,'.MR_COUNT+VALUES(MR_COUNT),
+					',@rpt_target_table,'.RSRP_DIFF_SUM=',@rpt_target_table,'.RSRP_DIFF_SUM+VALUES(RSRP_DIFF_SUM),
+					',@rpt_target_table,'.RSRP_CAL_CNT=',@rpt_target_table,'.RSRP_CAL_CNT+VALUES(RSRP_CAL_CNT),
+					',@rpt_target_table,'.PCI_COUNT=',@rpt_target_table,'.PCI_COUNT+VALUES(PCI_COUNT)');
+			END IF;
+		END IF;	
 	
 		IF  (@db_exists * @db_exists2 > 0) AND (@col_cnt1 - @col_cnt2 = 0) AND (@col_name_1 =  @col_name_2) THEN
 			SET @SqlCmd=CONCAT('INSERT INTO ',@rpt_target_table,' 
@@ -146,16 +230,7 @@ BEGIN
 						' GROUP BY ',KEY_STR_COL,' 
 						ORDER BY NULL
 						ON DUPLICATE KEY UPDATE
-						',@rpt_target_table,'.HO_ALL_CNT=',@rpt_target_table,'.HO_ALL_CNT+VALUES(HO_ALL_CNT),
-						',@rpt_target_table,'.HO_SUCC_CNT=',@rpt_target_table,'.HO_SUCC_CNT+VALUES(HO_SUCC_CNT),
-						',@rpt_target_table,'.HO_FAIL_CNT=',@rpt_target_table,'.HO_FAIL_CNT+VALUES(HO_FAIL_CNT),
-						',@rpt_target_table,'.HO_DROP_CNT=',@rpt_target_table,'.HO_DROP_CNT+VALUES(HO_DROP_CNT),
-						',@rpt_target_table,'.MEAS_RXLEV=',@rpt_target_table,'.MEAS_RXLEV+VALUES(MEAS_RXLEV),
-						',@rpt_target_table,'.MEAS_CNT=',@rpt_target_table,'.MEAS_CNT+VALUES(MEAS_CNT),
-						',@rpt_target_table,'.SERV_RXLEV=',@rpt_target_table,'.SERV_RXLEV+VALUES(SERV_RXLEV),
-						',@rpt_target_table,'.SERV_RXLEV_CNT=',@rpt_target_table,'.SERV_RXLEV_CNT+VALUES(SERV_RXLEV_CNT),
-						',@rpt_target_table,'.SERV_RXQUAL=',@rpt_target_table,'.SERV_RXQUAL+VALUES(SERV_RXQUAL),
-						',@rpt_target_table,'.SERV_RXQUAL_CNT=',@rpt_target_table,'.SERV_RXQUAL_CNT+VALUES(SERV_RXQUAL_CNT)
+							',DUPLICATE_KEY_UPDATE,'
 						;');
 			PREPARE Stmt FROM @SqlCmd;
 			EXECUTE Stmt;
