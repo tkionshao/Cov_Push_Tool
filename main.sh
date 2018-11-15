@@ -19,3 +19,6 @@ sh ./bin/table_dump.sh
 # log
 echo "sql file: ${SQLFILENAME}"
 echo "time: ${NOW}"
+
+# git lab push
+sh ./git_lab_push.sh
