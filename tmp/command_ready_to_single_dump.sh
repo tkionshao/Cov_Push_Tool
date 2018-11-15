@@ -180,6 +180,7 @@ sh ./bin/single_dump_tool.sh gt_gw_main SP_Generate_NT
 sh ./bin/single_dump_tool.sh gt_gw_main SP_Generate_NT_GSM
 sh ./bin/single_dump_tool.sh gt_gw_main SP_Generate_NT_LTE
 sh ./bin/single_dump_tool.sh gt_gw_main SP_Generate_NT_LTE_DROP_TEMP_TBL
+sh ./bin/single_dump_tool.sh gt_gw_main SP_Generate_NT_LTE_DROP_TEMP_TBL_test
 sh ./bin/single_dump_tool.sh gt_gw_main SP_Generate_NT_Sub_Antenna_Info
 sh ./bin/single_dump_tool.sh gt_gw_main SP_Generate_NT_Sub_Check
 sh ./bin/single_dump_tool.sh gt_gw_main SP_Generate_NT_Sub_Check_Special

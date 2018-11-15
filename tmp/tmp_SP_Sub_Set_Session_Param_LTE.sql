@@ -1,2 +1,0 @@
-CREATE DEFINER=`covmo`@`%` PROCEDURE `SP_Sub_Set_Session_Param_LTE`(IN GT_DB VARCHAR(100))
-BEGIN
