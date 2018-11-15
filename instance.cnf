@@ -1,5 +1,6 @@
 MYSQL_CONN="-u covmo -pcovmo123 -h 192.168.1.221 -P 3310"
 SPALLINONE="./sp_release"
 SPSINGLES="./sp_history"
+TABLESDIR="./sp_tables"
 DUMPTARGETDB="'gt_gw_main','gt_global_statistic','operations_monitor'"
-BRANCHNAME="dtag_r3p3"
+TABLELIST=("gt_gw_main tbl_rpt_other","gt_global_statistic nw_config","gt_global_statistic sp_version_nw","gt_gw_main sp_version")
