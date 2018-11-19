@@ -7,7 +7,7 @@ git pull
 git checkout ${BRANCHNAME}
 
 sh ./bin/all_in_one_dump.sh ${SQLFILENAME}
-zip -r ./sp_release/tmp_sql_file.zip ./sp_release/${SQLFILENAME}/
+zip -r ./sp_release/tmp_sql_file.zip ./sp_release/${SQLFILENAME}
  
 # dump singles sp
 sh ./bin/make_single_dump_command.sh
@@ -21,4 +21,4 @@ echo "sql file: ${SQLFILENAME}"
 echo "time: ${NOW}"
 
 # git lab push
-sh ./git_lab_push.sh
+sh ./git_lab_push.sh $SQLFILENAME
