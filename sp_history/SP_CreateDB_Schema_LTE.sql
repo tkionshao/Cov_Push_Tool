@@ -4982,8 +4982,8 @@ BEGIN
 	END IF; 
 		
 	IF FLAG IN (2,3) THEN
-		IF PM_COUNTER_FLAG = 'true' THEN
-			CALL gt_gw_main.SP_CreateDB_Schema_PM(GT_DB,4);
+-- 		IF PM_COUNTER_FLAG = 'true' THEN
+-- 			CALL gt_gw_main.SP_CreateDB_Schema_PM(GT_DB,4);
 			SET @SqlCmd=CONCAT('CREATE TABLE  if not exists ',GT_DB,'.',CASE WHEN  FLAG=2 THEN 'table_pm_counter_lte' WHEN FLAG=3 THEN 'table_pm_counter_lte_wk' END,'(
 						`DATA_DATE` DATE DEFAULT NULL,
 						`DATA_HOUR` TINYINT(2) DEFAULT NULL,
@@ -5094,7 +5094,7 @@ BEGIN
 			PREPARE Stmt FROM @SqlCmd;
 			EXECUTE Stmt;
 			DEALLOCATE PREPARE Stmt;
-		END IF;
+-- 		END IF;
 		SET @SqlCmd=CONCAT('CREATE TABLE ',GT_DB,'.',CASE WHEN  FLAG=2 THEN 'table_overshooting_severity_lte' WHEN FLAG=3 THEN 'table_overshooting_severity_lte_wk' END,'(
 				
 					`DATA_DATE` DATE DEFAULT NULL,
