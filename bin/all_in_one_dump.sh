@@ -11,19 +11,8 @@ mkdir ${path}
 
 echo "use gt_gw_main;" >> $path$filename
 echo "Set global log_bin_trust_function_creators=1;" >> $path$filename
-echo "CREATE DATABASE IF NOT EXISTS operations_monitor;" >> $path$filename
 ${MYSQLCMD} gt_gw_main tbl_rpt_other --routines --no-create-db --event>> $path$filename
 
-echo "use gt_global_statistic;" >> $path$filename
-${MYSQLCMD}  gt_global_statistic  nw_config --routines --no-create-db >> $path$filename
-
-echo "use operations_monitor;" >> $path$filename
-${MYSQLCMD}  operations_monitor   --routines --no-create-db --no-create-info --no-data --event>> $path$filename
-
-echo "use gt_global_statistic;" >> $path$filename
-${MYSQLCMD} gt_global_statistic  sp_version_nw >> $path$filename
-
-echo "use gt_gw_main;" >> $path$filename
 ${MYSQLCMD} gt_gw_main sp_version >> $path$filename
 # DONE
 
