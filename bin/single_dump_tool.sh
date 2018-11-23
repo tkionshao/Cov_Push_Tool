@@ -12,7 +12,7 @@ PROC_EXISTS=`mysql ${MYSQL_CONN} -ANe"${SQLSTMT}" | awk '{print $1}'`
 if [ ${PROC_EXISTS} -eq 1 ]
 then
     rm -f ${TMPFILE}
-    echo "Export ${DBNAME}.${SPNAME}"
+#    echo "Export ${DBNAME}.${SPNAME}"
     SQLSTMT="SELECT type FROM mysql.proc WHERE db='${DBNAME}' AND name='${SPNAME}'"
     PROC_TYPE=`mysql ${MYSQL_CONN} -ANe"${SQLSTMT}" | awk '{print $1}'`
     SQLSTMT="SHOW CREATE ${PROC_TYPE} ${DBNAME}.${SPNAME}\G"
