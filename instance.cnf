@@ -5,3 +5,21 @@ TABLESDIR="./sp_tables"
 DUMPTARGETDB="'gt_gw_main','gt_global_statistic','operations_monitor'"
 TABLELIST=("gt_gw_main tbl_rpt_other","gt_global_statistic nw_config","gt_global_statistic sp_version_nw","gt_gw_main sp_version")
 BRANCHNAME=dtag_r3p3
+# SP_VERSION
+LTE_SCHEMA='L20180628'
+LTE_NT='LN20180312'
+LTE_POS='LP20180430'
+LTE_RPT='LR20180830'
+UMTS_SCHEMA=''
+UMTS_NT='UN20180312'
+UMTS_POS=''
+UMTS_RPT=''
+GSM_SCHEMA=''
+GSM_NT='GN20180530'
+GSM_POS=''
+GSM_RPT=''
+LTE_NT2='LN20180822'
+UMTS_NT2='UN20180822'
+GSM_NT2='GN20180822'
+
+

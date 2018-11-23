@@ -9,6 +9,9 @@ DBCONFIGFILE=${path}/db.config
 rm -rf ${SPALLINONE}/*
 mkdir ${path} 
 
+mysql ${MYSQL_CONN} -e "TRUNCATE TABLE gt_gw_main.sp_version;"
+mysql ${MYSQL_CONN} -e "INSERT INTO gt_gw_main.sp_version VALUES ('${SPVERSION}','${LTE_SCHEMA}','${LTE_NT}','${LTE_POS}','${LTE_RPT}','${UMTS_SCHEMA}','${UMTS_NT}','${UMTS_POS}','${UMTS_RPT}','${GSM_SCHEMA}','${GSM_NT}','${GSM_POS}','${GSM_RPT}','${LTE_NT2}','${UMTS_NT2}','${GSM_NT2}',NULL);"
+
 echo "use gt_gw_main;" >> $path$filename
 echo "Set global log_bin_trust_function_creators=1;" >> $path$filename
 echo "CREATE DATABASE IF NOT EXISTS operations_monitor;" >> $path$filename
